@@ -167,6 +167,26 @@ For production, set these in **Vercel → Project Settings → Environment Varia
 
 ---
 
+## Recommended Implementation Order
+
+Features have dependencies. Follow this order so each feature's prerequisites are already in place:
+
+| Phase | Features | Why First |
+|-------|----------|-----------|
+| **1 — Infrastructure** | 8.1 Axios Setup → 8.2 Auth Context → 7.5 ProtectedRoute → 7.1 Navbar | Every page depends on the HTTP client, auth state, and route guards. |
+| **2 — Auth & Onboarding** | 1.1 Donor Registration → 1.2 NGO Registration → 1.3 Email Verification → 1.4 Login → 1.5 Logout → 1.6 Protected Routes | Users must be able to register and log in before any role-specific screens work. |
+| **3 — Shared Components** | 7.2 TrustBadge → 7.3 NeedProgressBar → 7.4 CategoryPin | Used across Discovery Map, NGO Profile, and dashboards. Build once, reuse everywhere. |
+| **4 — Discovery Map** | 2.1 Discovery Map → 2.2 Filter Bar → 2.3 Side List → 2.4 Auto-Expand → 2.5 Pin Popup | The donor's main entry point. Filter Bar, Side List, Auto-Expand, and Pin Popup are sub-features of the map page. |
+| **5 — NGO Profile & Pledging** | 3.1 NGO Profile → 3.2 Report NGO → 3.3 Pledge Screen → 3.4 Delivery View (OSRM) | Donors navigate here from the map. Pledge and Delivery depend on the profile page existing. |
+| **6 — Donor Dashboard** | 4.1 Active Pledges → 4.2 Donation History | Requires pledges to exist (Phase 5). |
+| **7 — NGO Dashboard** | 5.1 Profile Completion → 5.2 Active Needs CRUD → 5.3 Incoming Pledges → 5.4 Mark Fulfilled → 5.5 Trust Score Display | Depends on auth (Phase 2) and shared components (Phase 3). Profile Completion gates map visibility. |
+| **8 — Admin Dashboard** | 6.1 Stats Overview → 6.2 Verification Queue → 6.3 Report Queue → 6.4 NGO Management → 6.5 Suspend NGO (Cascade) | Admin features are independent of donor/NGO UI but need Infrastructure (Phase 1). Do last since they aren't on the critical user path. |
+| **9 — PWA & Deployment** | 8.3 PWA Manifest → 8.4 Service Worker → 8.5 Offline Check → 8.6 Vercel Config | Polish layer. Add after all features work correctly. |
+
+> **Rule of thumb:** Within each phase, work left-to-right. Never skip to a later phase until the current one is complete.
+
+---
+
 ## Questions?
 
 If you're unsure about implementation details for a feature, check:
