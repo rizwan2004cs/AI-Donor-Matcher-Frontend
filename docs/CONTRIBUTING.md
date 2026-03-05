@@ -17,6 +17,53 @@ Thank you for contributing! This guide explains how to add a new feature using a
 
 ---
 
+## Every Time You Open the Editor
+
+**Before touching any code**, always sync your local repo with the remote to avoid conflicts:
+
+```bash
+git fetch origin          # see what's changed remotely (safe, no merge)
+git pull origin main      # pull latest changes into your current branch
+npm install               # install any new dependencies added by teammates
+```
+
+> **Why?** Teammates may have merged PRs while you were away. Working on stale code leads to merge conflicts and wasted effort.
+
+If you are on a feature branch, rebase onto the latest `main` to stay current:
+
+```bash
+git fetch origin
+git rebase origin/main
+```
+
+Resolve any conflicts, then continue working.
+
+---
+
+## AI Coding Assistants
+
+This repo includes instruction files for all major AI coding agents so they automatically follow the project's design system and conventions — **no manual setup required**.
+
+| File | Agent |
+|------|-------|
+| `.github/copilot-instructions.md` | GitHub Copilot |
+| `.cursorrules` | Cursor |
+| `.windsurfrules` | Windsurf |
+| `CLAUDE.md` | Claude Code / Claude-based tools |
+| `.clinerules` | Cline |
+| `AGENTS.md` | OpenAI Codex CLI |
+
+Each file tells the agent to:
+- Use `teal-600` as the primary colour (never `#2E75B6` or `#1F4E79`).
+- Use `glass rounded-2xl` cards, `glass-nav` navbar, `bg-teal-50` page backgrounds.
+- Read `docs/skills/design-system/SKILL.md` before modifying any UI.
+- Route all API calls through `src/api/axios.js`.
+- Use Lucide React for icons.
+
+If you add a **new AI tool** that isn't listed above, create a config file for it in the repo root following the same pattern as `CLAUDE.md`, then open a PR.
+
+---
+
 ## Branch Naming Convention
 
 Every feature gets its own branch. Use the naming pattern from [docs/FEATURES.md](docs/FEATURES.md):
@@ -127,7 +174,9 @@ Once approved, the reviewer (or you, if you have permission) merges the PR into 
 
 ### Styling
 - Use **Tailwind CSS** utility classes. No custom CSS files per component.
-- Theme colours: primary `#2E75B6`, dark `#1F4E79`, white backgrounds.
+- Theme colours: primary `teal-600` (#0D9488), accent `emerald-500`, neutrals from the `slate` palette. **Never** use `#2E75B6` or `#1F4E79`.
+- Cards: `glass rounded-2xl`. Buttons: `bg-teal-600 text-white rounded-xl hover:bg-teal-700`. Page backgrounds: `bg-teal-50`.
+- See `docs/skills/design-system/SKILL.md` for the full design token reference.
 - Responsive: mobile-first. Test at 375px width minimum.
 
 ### Routing
