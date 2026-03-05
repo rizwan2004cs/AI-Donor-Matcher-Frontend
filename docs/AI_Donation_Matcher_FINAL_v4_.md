@@ -8,7 +8,7 @@
 
 **Final Year Engineering Project | Academic Year 2025–26**
 
-**Stack:** React.js + Spring Boot + PostgreSQL | **Timeline:** 14 Weeks
+**Stack:** React 19 + Vite 6 + Spring Boot + PostgreSQL | **Timeline:** 14 Weeks
 
 **All Tools: 100% Free — No Credit Card Required**
 
@@ -493,7 +493,9 @@ Every tool listed below is completely free. No credit card, billing account, or 
 
 | Layer | Technology | Justification / Cost |
 |-------|-----------|---------------------|
-| Frontend | React.js + Tailwind CSS | Component SPA. Three role dashboards. Tailwind responsive styling. React Context API for auth state. 100% free. |
+| Frontend | React 19 + Vite 6 + Tailwind CSS 3.4 | Component SPA. Three role dashboards. Vite for fast dev/build. Tailwind CSS 3.4 utility styling. React Context API for auth state. Lucide React for icons. react-router-dom v7 for routing. 100% free. |
+| Icons | Lucide React v0.460 | Consistent icon set used across all components and pages. Replaces any other icon library. |
+| Maps Client | react-leaflet v5 + Leaflet 1.9 | React wrapper for Leaflet maps. Colour-coded NGO pins, popups, OSRM route polylines. |
 | Maps | Leaflet.js + OpenStreetMap | Free, open-source. No API key. Colour-coded NGO pins, popups, route polylines. Geolocation API with manual fallback. |
 | Routing | OSRM Public API | Free open-source routing. Returns GeoJSON road route for Leaflet polyline. Suitable for prototype. Self-host or upgrade for production. |
 | Backend | Java + Spring Boot | MVC: Controller/Service/Repository per domain. Spring Data JPA. Monolithic — deliberate, right-sized choice. 100% free. |
@@ -520,6 +522,50 @@ Monolithic three-tier client-server. All roles share the same core entities (NGO
 
 The diagram shows all four user flows (Presentation Layer, NGO Flow, Admin Flow, Donor Flow, Automated System Flow) connected through the Application Layer (Spring Boot) and Data Layer (PostgreSQL).
 
+#### 7.2.2 Frontend File Structure
+
+```
+src/
+  App.jsx                  — Route definitions for all three roles
+  index.css                — Global styles (glass, glass-nav, glass-subtle utilities)
+  main.jsx                 — Vite entry point; registers service worker
+  api/
+    axios.js               — Axios instance; VITE_API_BASE_URL; JWT interceptor
+  auth/
+    AuthContext.jsx        — AuthProvider + useAuth() hook; persists token to localStorage
+  components/
+    Navbar.jsx             — glass-nav glassmorphism; role-aware links
+    TrustBadge.jsx         — Displays trust score tier (New / Established / Trusted)
+    NeedProgressBar.jsx    — Quantity progress bar for active needs
+    CategoryPin.jsx        — createCategoryIcon() for Leaflet colour-coded markers
+    ProtectedRoute.jsx     — Redirects unauthenticated or wrong-role users
+  pages/
+    Login.jsx              — JWT login; role-based redirect after success
+    Register.jsx           — Donor + NGO registration; NGO document upload
+    EmailVerificationPending.jsx — Post-registration holding screen; resend link
+    DiscoveryMap.jsx       — Leaflet map + side list; search/category/radius filters
+    NgoProfile.jsx         — Full NGO profile; needs + progress bars; report modal
+    PledgeScreen.jsx       — Quantity selector; offline guard; navigates to DeliveryView
+    DeliveryView.jsx       — OSRM route polyline; expiry countdown; cancel pledge
+    DonorDashboard.jsx     — Active pledges tab + donation history tab
+    NgoDashboard.jsx       — Needs CRUD; incoming pledges; max 5 active needs cap
+    NgoProfileCompletion.jsx — Profile completion gate; progress bar; go-live check
+    AdminDashboard.jsx     — Verification queue; report queue; NGO management + suspend
+  utils/
+    categoryColors.js      — CATEGORY_COLORS hex map + CATEGORY_LABELS + CATEGORY_OPTIONS
+    fixLeafletIcons.js     — Patches Leaflet default icon paths for Vite builds
+public/
+  manifest.json            — PWA manifest (theme: #0F766E, bg: #F0FDFA)
+  service-worker.js        — Cache-first static, network-first API strategy
+```
+
+**Environment Variables (`.env`)**
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_API_BASE_URL` | Spring Boot backend base URL |
+| `VITE_OSRM_URL` | OSRM routing server URL (defaults to public demo server) |
+
 ### 7.3 Progressive Web App (PWA) Implementation
 
 The platform is implemented as a Progressive Web App, making it installable on Android and iOS devices directly from the browser without any app store submission. The same React codebase serves both the web and mobile experience.
@@ -539,33 +585,50 @@ React Native would require a completely separate codebase, Android Studio or Xco
 // manifest.json — tells the phone how to install the app
 {
   "name": "AI Donation Matcher",
-  "short_name": "DonationApp",
+  "short_name": "DonorMatch",
+  "description": "AI-powered platform connecting donors with verified NGOs based on proximity and need urgency.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1F4E79",
-  "theme_color": "#2E75B6",
+  "background_color": "#F0FDFA",
+  "theme_color": "#0F766E",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
 ```
 
 ```javascript
 // service-worker.js — handles offline caching
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open('adm-cache-v1').then((cache) =>
-      cache.addAll(['/', '/index.html', '/static/css/main.css'])
-    )
-  );
+const CACHE_NAME = "donor-match-v1";
+const STATIC_ASSETS = ["/", "/index.html"];
+
+// Install — cache app shell
+self.addEventListener("install", (e) => {
+  e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
+  self.skipWaiting();
 });
 
-// Serve from cache when offline, fetch from network when online
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+// Activate — clean old caches
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
   );
+  self.clients.claim();
+});
+
+// Fetch — network-first for API calls, cache-first for static assets
+self.addEventListener("fetch", (e) => {
+  if (request.method !== "GET") return;
+  if (e.request.url.includes("/api/")) {
+    // API: network only, fallback to cache
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    return;
+  }
+  // Static: serve from cache, update in background
+  e.respondWith(caches.match(e.request).then((cached) => cached || fetch(e.request)));
 });
 ```
 
@@ -573,9 +636,9 @@ self.addEventListener('fetch', (e) => {
 
 When the donor has no internet connection, the service worker serves the last cached version of the app. The discovery map shows the last loaded NGO data. Previously visited NGO profiles are accessible. Any action requiring server interaction — pledging, marking fulfilled — shows a clear message: 'You are offline. This action requires an internet connection.' When connectivity returns, the app resumes normally.
 
-**PWA Implementation Owner**
+**PWA Implementation Status**
 
-Rizwan owns the PWA implementation as an extension of his frontend responsibilities. The manifest.json and service worker are added to the existing React project — no changes to backend, database, or any other team member's code are required. Estimated implementation time: half a day after Tier 1 is complete.
+PWA is fully implemented. `public/manifest.json` and `public/service-worker.js` are in the repository. The service worker uses a network-first strategy for all `/api/` calls and a cache-first strategy for the static app shell. Old cache versions are automatically cleaned up on activation.
 
 ### 7.4 Key Data Models & State Machines
 
