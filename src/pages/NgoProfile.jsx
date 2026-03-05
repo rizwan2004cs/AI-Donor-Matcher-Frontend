@@ -54,7 +54,7 @@ export default function NgoProfile() {
     return (
       <>
         <Navbar />
-        <div className="p-8 text-center text-gray-400">Loading...</div>
+        <div className="p-8 text-center text-slate-400">Loading...</div>
       </>
     );
   if (error)
@@ -75,20 +75,20 @@ export default function NgoProfile() {
             <img
               src={ngo.photoUrl}
               alt={ngo.name}
-              className="w-20 h-20 rounded-lg object-cover"
+              className="w-20 h-20 rounded-2xl object-cover"
             />
           ) : (
-            <div className="w-20 h-20 rounded-lg bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-400">
+            <div className="w-20 h-20 rounded-2xl bg-slate-200 flex items-center justify-center text-2xl font-bold text-slate-400">
               {ngo.name?.charAt(0)}
             </div>
           )}
           <div>
-            <h1 className="text-2xl font-bold text-[#1F4E79]">{ngo.name}</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{ngo.name}</h1>
             <TrustBadge score={ngo.trustScore} label={ngo.trustLabel} />
-            <p className="text-sm text-gray-500 mt-1">📍 {ngo.address}</p>
-            <p className="text-sm text-gray-500">✉ {ngo.contactEmail}</p>
+            <p className="text-sm text-slate-500 mt-1">📍 {ngo.address}</p>
+            <p className="text-sm text-slate-500">✉ {ngo.contactEmail}</p>
             {ngo.verifiedSince && (
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-slate-400 mt-1">
                 Verified since: {ngo.verifiedSince}
               </p>
             )}
@@ -97,8 +97,8 @@ export default function NgoProfile() {
 
         {/* About */}
         {ngo.description && (
-          <div className="bg-gray-50 rounded-lg p-4">
-            <p className="text-sm text-gray-700">{ngo.description}</p>
+          <div className="glass rounded-2xl p-4">
+            <p className="text-sm text-slate-700">{ngo.description}</p>
           </div>
         )}
 
@@ -106,7 +106,7 @@ export default function NgoProfile() {
         <div>
           <h2 className="text-lg font-bold mb-3">Active Needs</h2>
           {ngo.activeNeeds?.length === 0 ? (
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-slate-400">
               No active needs right now.
             </p>
           ) : (
@@ -117,7 +117,7 @@ export default function NgoProfile() {
                 return (
                   <div
                     key={need.id}
-                    className="border rounded-lg p-4 space-y-2"
+                    className="glass rounded-2xl p-4 space-y-2"
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -134,7 +134,7 @@ export default function NgoProfile() {
                         </span>
                       )}
                       {need.expiryDate && (
-                        <span className="text-xs text-gray-400 ml-auto">
+                        <span className="text-xs text-slate-400 ml-auto">
                           ⏰ Expires: {need.expiryDate}
                         </span>
                       )}
@@ -143,7 +143,7 @@ export default function NgoProfile() {
                       pledged={need.quantityPledged}
                       required={need.quantityRequired}
                     />
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-slate-500">
                       {remaining} remaining of {need.quantityRequired}
                     </p>
                     <button
@@ -156,7 +156,7 @@ export default function NgoProfile() {
                           ? "Verify your email to pledge."
                           : ""
                       }
-                      className="bg-[#2E75B6] text-white text-sm px-4 py-1.5 rounded-lg hover:bg-[#1F4E79] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-teal-600 text-white text-sm px-4 py-1.5 rounded-xl hover:bg-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Pledge This Item
                     </button>
@@ -175,13 +175,13 @@ export default function NgoProfile() {
               {ngo.fulfilledHistory.map((item, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 text-sm text-gray-600"
+                  className="flex items-center gap-3 text-sm text-slate-600"
                 >
                   <span className="text-green-500">✓</span>
                   <span>
                     {item.itemName} ({item.quantity})
                   </span>
-                  <span className="ml-auto text-gray-400">
+                  <span className="ml-auto text-slate-400">
                     {item.fulfilledDate}
                   </span>
                 </div>
@@ -194,7 +194,7 @@ export default function NgoProfile() {
         <div className="border-t pt-4">
           <button
             onClick={() => setShowReport(true)}
-            className="text-sm text-gray-400 hover:text-red-500 transition"
+            className="text-sm text-slate-400 hover:text-red-500 transition-all duration-200"
           >
             ⚑ Report this organisation
           </button>
@@ -202,8 +202,8 @@ export default function NgoProfile() {
 
         {/* Report modal */}
         {showReport && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-sm space-y-4">
+          <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-lg">
               <h3 className="font-bold text-lg">Report NGO</h3>
               <div className="space-y-2">
                 {REPORT_REASONS.map((r) => (
@@ -222,14 +222,14 @@ export default function NgoProfile() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowReport(false)}
-                  className="flex-1 py-2 border rounded-lg text-sm"
+                  className="flex-1 py-2 border border-slate-200 rounded-xl text-sm hover:bg-white/40 transition-all duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={submitReport}
                   disabled={reporting || !reportReason}
-                  className="flex-1 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50"
+                  className="flex-1 py-2 bg-red-500 text-white rounded-xl text-sm disabled:opacity-50 hover:bg-red-600 transition-all duration-200"
                 >
                   {reporting ? "Submitting..." : "Submit Report"}
                 </button>

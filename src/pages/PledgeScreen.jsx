@@ -50,7 +50,7 @@ export default function PledgeScreen() {
     return (
       <>
         <Navbar />
-        <div className="p-8 text-center text-gray-400">Loading...</div>
+        <div className="p-8 text-center text-slate-400">Loading...</div>
       </>
     );
   if (error)
@@ -64,19 +64,19 @@ export default function PledgeScreen() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md space-y-5">
-          <h1 className="text-xl font-bold text-[#1F4E79]">
+      <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
+        <div className="glass rounded-2xl p-8 w-full max-w-md space-y-5">
+          <h1 className="text-xl font-bold text-slate-900">
             Pledge to {need.ngoName}
           </h1>
 
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">Item:</span>
+              <span className="text-slate-500">Item:</span>
               <span className="font-medium">{need.itemName}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Category:</span>
+              <span className="text-slate-500">Category:</span>
               <span className="flex items-center gap-1">
                 <span
                   className="w-2.5 h-2.5 rounded-full"
@@ -94,7 +94,7 @@ export default function PledgeScreen() {
                 className={
                   need.urgency === "URGENT"
                     ? "text-red-500 font-medium"
-                    : "text-gray-700"
+                    : "text-slate-700"
                 }
               >
                 {need.urgency === "URGENT" ? "🔴 Urgent" : "● Normal"}
@@ -106,11 +106,11 @@ export default function PledgeScreen() {
 
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">Total needed:</span>
+              <span className="text-slate-500">Total needed:</span>
               <span>{need.quantityRequired}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Pledged by others:</span>
+              <span className="text-slate-500">Pledged by others:</span>
               <span>{need.quantityPledged}</span>
             </div>
             <div className="flex justify-between font-semibold">
@@ -122,13 +122,13 @@ export default function PledgeScreen() {
           <hr />
 
           <div>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-slate-600 mb-2">
               How many can you donate?
             </p>
             <div className="flex items-center gap-4 justify-center">
               <button
                 onClick={decrement}
-                className="w-10 h-10 rounded-full border text-lg font-bold hover:bg-gray-100"
+                className="w-10 h-10 rounded-full border text-lg font-bold hover:bg-white/40 transition-all duration-200"
               >
                 −
               </button>
@@ -137,23 +137,23 @@ export default function PledgeScreen() {
               </span>
               <button
                 onClick={increment}
-                className="w-10 h-10 rounded-full border text-lg font-bold hover:bg-gray-100"
+                className="w-10 h-10 rounded-full border text-lg font-bold hover:bg-white/40 transition-all duration-200"
               >
                 +
               </button>
-              <span className="text-xs text-gray-400">(max: {remaining})</span>
+              <span className="text-xs text-slate-400">(max: {remaining})</span>
             </div>
           </div>
 
           <button
             onClick={onSubmit}
             disabled={submitting}
-            className="w-full bg-[#2E75B6] text-white py-2.5 rounded-lg font-semibold hover:bg-[#1F4E79] transition disabled:opacity-50"
+            className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200 disabled:opacity-50"
           >
             {submitting ? "Pledging..." : "Confirm Pledge"}
           </button>
 
-          <p className="text-xs text-gray-400 text-center">
+          <p className="text-xs text-slate-400 text-center">
             A confirmation email will be sent to you with NGO address and
             contact.
           </p>

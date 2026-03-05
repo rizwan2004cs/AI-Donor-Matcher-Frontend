@@ -99,11 +99,11 @@ export default function AdminDashboard() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-teal-50">
         {/* Header */}
-        <div className="bg-[#1F4E79] text-white px-6 py-6">
+        <div className="glass-nav text-white px-6 py-6">
           <h1 className="text-xl font-bold">Admin Dashboard</h1>
-          <p className="text-blue-200 text-sm mt-1">
+          <p className="text-teal-200 text-sm mt-1">
             Platform management & moderation
           </p>
         </div>
@@ -139,7 +139,7 @@ export default function AdminDashboard() {
         )}
 
         {/* Tab bar */}
-        <div className="flex border-b bg-white max-w-4xl mx-auto">
+        <div className="flex border-b glass-subtle max-w-4xl mx-auto rounded-t-xl">
           {[
             { id: "verify", label: "Verifications", count: pendingVerifications.length },
             { id: "reports", label: "Reports", count: reports.length },
@@ -148,10 +148,10 @@ export default function AdminDashboard() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 py-3 text-sm font-medium text-center border-b-2 transition ${
+              className={`flex-1 py-3 text-sm font-medium text-center border-b-2 transition-all duration-200 ${
                 tab === t.id
-                  ? "border-[#2E75B6] text-[#2E75B6]"
-                  : "border-transparent text-gray-500"
+                  ? "border-teal-600 text-teal-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
               }`}
             >
               {t.label} ({t.count})
@@ -161,21 +161,21 @@ export default function AdminDashboard() {
 
         <div className="max-w-4xl mx-auto p-4 space-y-3">
           {loading && (
-            <p className="text-center text-gray-400 py-8">Loading...</p>
+            <p className="text-center text-slate-400 py-8">Loading...</p>
           )}
 
           {/* Verification Queue */}
           {!loading && tab === "verify" && (
             <>
               {pendingVerifications.length === 0 && (
-                <p className="text-center text-gray-400 py-8">
+                <p className="text-center text-slate-400 py-8">
                   No pending verifications.
                 </p>
               )}
               {pendingVerifications.map((v) => (
                 <div
                   key={v.id}
-                  className="bg-white rounded-lg shadow p-4 flex items-start justify-between"
+                  className="glass rounded-2xl p-4 flex items-start justify-between"
                 >
                   <div className="flex items-start gap-3">
                     {v.profilePhotoUrl ? (
@@ -185,7 +185,7 @@ export default function AdminDashboard() {
                         className="w-12 h-12 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
+                      <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
                         <Users className="w-5 h-5" />
                       </div>
                     )}
@@ -193,8 +193,8 @@ export default function AdminDashboard() {
                       <p className="font-medium text-sm">
                         {v.organizationName}
                       </p>
-                      <p className="text-xs text-gray-500">{v.email}</p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-slate-500">{v.email}</p>
+                      <p className="text-xs text-slate-400 mt-1">
                         {v.address}
                       </p>
                       {v.verificationDocUrl && (
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
                           href={v.verificationDocUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-[#2E75B6] underline flex items-center gap-1 mt-1"
+                          className="text-xs text-teal-600 underline flex items-center gap-1 mt-1"
                         >
                           <FileText className="w-3 h-3" /> View Document
                         </a>
@@ -212,13 +212,13 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={() => approveNgo(v.id)}
-                      className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-md flex items-center gap-1 hover:bg-green-700"
+                      className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-emerald-700 transition-all duration-200"
                     >
                       <CheckCircle className="w-3 h-3" /> Approve
                     </button>
                     <button
                       onClick={() => rejectNgo(v.id)}
-                      className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-md flex items-center gap-1 hover:bg-red-600"
+                      className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-600 transition-all duration-200"
                     >
                       <XCircle className="w-3 h-3" /> Reject
                     </button>
@@ -232,14 +232,14 @@ export default function AdminDashboard() {
           {!loading && tab === "reports" && (
             <>
               {reports.length === 0 && (
-                <p className="text-center text-gray-400 py-8">
+                <p className="text-center text-slate-400 py-8">
                   No open reports.
                 </p>
               )}
               {reports.map((r) => (
                 <div
                   key={r.id}
-                  className={`bg-white rounded-lg shadow p-4 ${
+                  className={`glass rounded-2xl p-4 ${
                     r.reportCount >= 3 ? "border-l-4 border-red-500" : ""
                   }`}
                 >
@@ -253,10 +253,10 @@ export default function AdminDashboard() {
                           </span>
                         )}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-slate-500 mt-1">
                         Reason: {r.reason}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-xs text-slate-400 mt-0.5">
                         Reported by: {r.reporterEmail} •{" "}
                         {new Date(r.createdAt).toLocaleDateString()}
                       </p>
@@ -264,13 +264,13 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={() => suspendNgo(r.ngoId)}
-                        className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-md flex items-center gap-1 hover:bg-red-600"
+                        className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-600 transition-all duration-200"
                       >
                         <Ban className="w-3 h-3" /> Suspend
                       </button>
                       <button
                         onClick={() => dismissReport(r.id)}
-                        className="text-xs border border-gray-300 text-gray-600 px-3 py-1.5 rounded-md hover:bg-gray-50"
+                        className="text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-xl hover:bg-white/40 transition-all duration-200"
                       >
                         Dismiss
                       </button>
@@ -285,14 +285,14 @@ export default function AdminDashboard() {
           {!loading && tab === "ngos" && (
             <>
               {ngos.length === 0 && (
-                <p className="text-center text-gray-400 py-8">
+                <p className="text-center text-slate-400 py-8">
                   No NGOs registered yet.
                 </p>
               )}
               {ngos.map((n) => (
                 <div
                   key={n.id}
-                  className="bg-white rounded-lg shadow p-4 flex items-center justify-between"
+                  className="glass rounded-2xl p-4 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
                     {n.profilePhotoUrl ? (
@@ -302,7 +302,7 @@ export default function AdminDashboard() {
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-xs">
+                      <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs">
                         NGO
                       </div>
                     )}
@@ -310,7 +310,7 @@ export default function AdminDashboard() {
                       <p className="font-medium text-sm">
                         {n.organizationName}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-slate-500">
                         {n.email} •{" "}
                         <span
                           className={
@@ -329,14 +329,14 @@ export default function AdminDashboard() {
                     {n.suspended ? (
                       <button
                         onClick={() => reinstateNgo(n.id)}
-                        className="text-xs border border-green-400 text-green-600 px-3 py-1.5 rounded-md flex items-center gap-1 hover:bg-green-50"
+                        className="text-xs border border-emerald-400 text-emerald-600 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-emerald-50 transition-all duration-200"
                       >
                         <RotateCcw className="w-3 h-3" /> Reinstate
                       </button>
                     ) : (
                       <button
                         onClick={() => suspendNgo(n.id)}
-                        className="text-xs border border-red-300 text-red-500 px-3 py-1.5 rounded-md flex items-center gap-1 hover:bg-red-50"
+                        className="text-xs border border-red-300 text-red-500 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-50 transition-all duration-200"
                       >
                         <Ban className="w-3 h-3" /> Suspend
                       </button>
@@ -354,13 +354,13 @@ export default function AdminDashboard() {
 
 function StatCard({ icon: Icon, label, value, color }) {
   const colorClasses = {
-    blue: "bg-blue-50 text-blue-700",
-    green: "bg-green-50 text-green-700",
-    yellow: "bg-yellow-50 text-yellow-700",
+    blue: "bg-teal-50 text-teal-700",
+    green: "bg-emerald-50 text-emerald-700",
+    yellow: "bg-amber-50 text-amber-700",
     red: "bg-red-50 text-red-700",
   };
   return (
-    <div className={`rounded-lg p-4 ${colorClasses[color] || colorClasses.blue}`}>
+    <div className={`rounded-2xl p-4 backdrop-blur-sm ${colorClasses[color] || colorClasses.blue}`}>
       <Icon className="w-5 h-5 mb-1 opacity-70" />
       <p className="text-2xl font-bold">{value ?? "–"}</p>
       <p className="text-xs opacity-70">{label}</p>

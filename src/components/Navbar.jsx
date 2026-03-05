@@ -11,18 +11,18 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-[#1F4E79] text-white px-6 py-3 flex items-center justify-between shadow-md">
-      <Link to="/" className="text-lg font-bold tracking-wide">
+    <nav className="glass-nav text-white px-6 py-3 flex items-center justify-between">
+      <Link to="/" className="text-lg font-bold tracking-tight">
         AI Donor Matcher
       </Link>
 
-      <div className="flex items-center gap-4 text-sm">
+      <div className="flex items-center gap-5 text-sm">
         {!user && (
           <>
-            <Link to="/login" className="hover:underline">
+            <Link to="/login" className="hover:text-teal-200 transition-all duration-200">
               Login
             </Link>
-            <Link to="/register" className="hover:underline">
+            <Link to="/register" className="hover:text-teal-200 transition-all duration-200">
               Register
             </Link>
           </>
@@ -30,23 +30,23 @@ export default function Navbar() {
 
         {user?.role === "DONOR" && (
           <>
-            <Link to="/" className="hover:underline">
+            <Link to="/" className="hover:text-teal-200 transition-all duration-200">
               Map
             </Link>
-            <Link to="/dashboard/donor" className="hover:underline">
+            <Link to="/dashboard/donor" className="hover:text-teal-200 transition-all duration-200">
               My Dashboard
             </Link>
           </>
         )}
 
         {user?.role === "NGO" && (
-          <Link to="/dashboard/ngo" className="hover:underline">
+          <Link to="/dashboard/ngo" className="hover:text-teal-200 transition-all duration-200">
             Dashboard
           </Link>
         )}
 
         {user?.role === "ADMIN" && (
-          <Link to="/dashboard/admin" className="hover:underline">
+          <Link to="/dashboard/admin" className="hover:text-teal-200 transition-all duration-200">
             Dashboard
           </Link>
         )}
@@ -54,7 +54,7 @@ export default function Navbar() {
         {user && (
           <button
             onClick={handleLogout}
-            className="bg-white/20 px-3 py-1 rounded hover:bg-white/30 transition"
+            className="bg-white/15 px-3.5 py-1.5 rounded-xl text-sm hover:bg-white/25 transition-all duration-200"
           >
             Logout
           </button>

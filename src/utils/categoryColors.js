@@ -1,10 +1,10 @@
 export const CATEGORY_COLORS = {
   FOOD: "#EF4444", // red
-  CLOTHING: "#3B82F6", // blue
-  MEDICINE: "#22C55E", // green
-  EDUCATION: "#EAB308", // yellow
+  CLOTHING: "#0EA5E9", // sky
+  MEDICINE: "#10B981", // emerald
+  EDUCATION: "#F59E0B", // amber
   HOUSEHOLD: "#F97316", // orange
-  OTHER: "#A855F7", // purple
+  OTHER: "#8B5CF6", // violet
 };
 
 export const CATEGORY_LABELS = {

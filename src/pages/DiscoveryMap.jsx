@@ -70,18 +70,18 @@ export default function DiscoveryMap() {
       <Navbar />
       <div className="flex flex-col h-[calc(100vh-52px)]">
         {/* Filter bar */}
-        <div className="bg-white border-b px-4 py-3 flex flex-wrap items-center gap-3">
+        <div className="glass-subtle px-4 py-3 flex flex-wrap items-center gap-3">
           <input
             type="text"
             placeholder="🔍 Search NGO by name..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"
           />
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"
           >
             <option value="">All Categories</option>
             {CATEGORY_OPTIONS.map((c) => (
@@ -104,7 +104,7 @@ export default function DiscoveryMap() {
           </div>
           <button
             onClick={() => fetchNgos()}
-            className="bg-[#2E75B6] text-white text-sm px-4 py-2 rounded-lg hover:bg-[#1F4E79] transition"
+            className="bg-teal-600 text-white text-sm px-5 py-2 rounded-xl hover:bg-teal-700 transition-all duration-200 shadow-sm hover:shadow font-medium"
           >
             Apply
           </button>
@@ -112,7 +112,7 @@ export default function DiscoveryMap() {
 
         {/* No local results banner */}
         {noLocal && (
-          <div className="bg-yellow-50 border-b border-yellow-200 text-yellow-800 text-sm px-4 py-2 text-center">
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-800 text-sm px-4 py-2 text-center">
             No NGOs found nearby. Showing all available NGOs.
           </div>
         )}
@@ -149,7 +149,7 @@ export default function DiscoveryMap() {
                       </p>
                       <button
                         onClick={() => navigate(`/ngo/${ngo.id}`)}
-                        className="mt-2 w-full bg-blue-600 text-white text-xs py-1 rounded"
+                        className="mt-2 w-full bg-teal-600 text-white text-xs py-1.5 rounded-lg hover:bg-teal-700 transition-all duration-200"
                       >
                         View Full Profile
                       </button>
@@ -161,21 +161,21 @@ export default function DiscoveryMap() {
           </div>
 
           {/* Side list */}
-          <div className="w-80 border-l bg-white overflow-y-auto">
+          <div className="w-80 glass-subtle overflow-y-auto">
             {loading ? (
-              <p className="p-4 text-sm text-gray-400">Loading...</p>
+              <p className="p-4 text-sm text-slate-400">Loading...</p>
             ) : ngos.length === 0 ? (
-              <p className="p-4 text-sm text-gray-400">No NGOs found.</p>
+              <p className="p-4 text-sm text-slate-400">No NGOs found.</p>
             ) : (
               ngos.map((ngo) => (
                 <div
                   key={ngo.id}
                   onClick={() => navigate(`/ngo/${ngo.id}`)}
-                  className="p-4 border-b hover:bg-gray-50 cursor-pointer"
+                  className="p-4 border-b border-white/20 hover:bg-white/40 cursor-pointer transition-all duration-200"
                 >
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">{ngo.name}</p>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-slate-400">
                       {ngo.distanceKm?.toFixed(1)} km
                     </span>
                   </div>
@@ -184,7 +184,7 @@ export default function DiscoveryMap() {
                       🔴 Urgent
                     </span>
                   )}
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-xs text-slate-600 mt-1">
                     <span
                       className="inline-block w-2 h-2 rounded-full mr-1"
                       style={{

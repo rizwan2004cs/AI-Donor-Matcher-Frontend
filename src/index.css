@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,12 +7,36 @@
 /* Global resets */
 body {
   margin: 0;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Space Grotesk", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #F0FDFA;
 }
 
 /* Leaflet container z-index fix */
 .leaflet-container {
   z-index: 0;
+}
+
+/* Glassmorphism utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.70);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.50);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+}
+
+.glass-nav {
+  background: rgba(15, 118, 110, 0.90);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }

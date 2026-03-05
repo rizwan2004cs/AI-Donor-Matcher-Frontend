@@ -51,13 +51,13 @@ export default function Register() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
         <form
           onSubmit={onSubmit}
-          className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md space-y-5"
+          className="glass rounded-2xl p-8 w-full max-w-md space-y-5"
         >
-          <h1 className="text-2xl font-bold text-center text-[#1F4E79]">
-            AI Donation Matcher
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Create Account
           </h1>
 
           {/* Role selector */}
@@ -67,10 +67,10 @@ export default function Register() {
                 key={r}
                 type="button"
                 onClick={() => setRole(r)}
-                className={`flex-1 py-2 rounded-lg font-medium transition ${
+                className={`flex-1 py-2.5 rounded-xl font-medium transition-all duration-200 ${
                   role === r
-                    ? "bg-[#2E75B6] text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-teal-600 text-white shadow-sm"
+                    : "bg-white/70 border border-slate-200 text-slate-600 hover:bg-white"
                 }`}
               >
                 {r === "DONOR" ? "Donor" : "NGO"}
@@ -84,7 +84,7 @@ export default function Register() {
             value={form.fullName}
             onChange={onChange}
             required
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"
           />
           <input
             name="email"
@@ -93,7 +93,7 @@ export default function Register() {
             value={form.email}
             onChange={onChange}
             required
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"
           />
           <input
             name="password"
@@ -102,7 +102,7 @@ export default function Register() {
             value={form.password}
             onChange={onChange}
             required
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"
           />
           <input
             name="location"
@@ -110,13 +110,13 @@ export default function Register() {
             value={form.location}
             onChange={onChange}
             required
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"
           />
 
           {/* NGO document upload */}
           {role === "NGO" && (
-            <div className="border border-dashed border-gray-300 rounded-lg p-4">
-              <label className="block text-sm text-gray-500 mb-1">
+            <div className="border border-dashed border-slate-300 rounded-xl p-4 bg-white/40">
+              <label className="block text-sm text-slate-500 mb-1">
                 Upload Registration Certificate
               </label>
               <input
@@ -128,20 +128,20 @@ export default function Register() {
           )}
 
           {error && (
-            <p className="text-red-500 text-sm text-center">{error}</p>
+            <p className="text-red-500 text-sm">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#2E75B6] text-white py-2.5 rounded-lg font-semibold hover:bg-[#1F4E79] transition disabled:opacity-50"
+            className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50"
           >
             {loading ? "Creating Account..." : "Create Account"}
           </button>
 
-          <p className="text-sm text-center text-gray-500">
+          <p className="text-sm text-slate-500">
             Already have an account?{" "}
-            <Link to="/login" className="text-blue-600 hover:underline">
+            <Link to="/login" className="text-teal-600 hover:text-teal-700 font-medium">
               Log In
             </Link>
           </p>

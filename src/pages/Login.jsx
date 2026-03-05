@@ -38,12 +38,12 @@ export default function Login() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
         <form
           onSubmit={onSubmit}
-          className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md space-y-5"
+          className="glass rounded-2xl p-8 w-full max-w-md space-y-5"
         >
-          <h1 className="text-2xl font-bold text-center text-[#1F4E79]">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             Log In
           </h1>
 
@@ -54,7 +54,7 @@ export default function Login() {
             value={form.email}
             onChange={onChange}
             required
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"
           />
           <input
             name="password"
@@ -63,24 +63,24 @@ export default function Login() {
             value={form.password}
             onChange={onChange}
             required
-            className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"
           />
 
           {error && (
-            <p className="text-red-500 text-sm text-center">{error}</p>
+            <p className="text-red-500 text-sm">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#2E75B6] text-white py-2.5 rounded-lg font-semibold hover:bg-[#1F4E79] transition disabled:opacity-50"
+            className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50"
           >
             {loading ? "Logging in..." : "Log In"}
           </button>
 
-          <p className="text-sm text-center text-gray-500">
+          <p className="text-sm text-slate-500">
             Don&apos;t have an account?{" "}
-            <Link to="/register" className="text-blue-600 hover:underline">
+            <Link to="/register" className="text-teal-600 hover:text-teal-700 font-medium">
               Register
             </Link>
           </p>

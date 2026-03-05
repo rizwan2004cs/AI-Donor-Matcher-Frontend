@@ -94,7 +94,7 @@ export default function DeliveryView() {
     return (
       <>
         <Navbar />
-        <div className="p-8 text-center text-gray-400">Loading delivery view...</div>
+        <div className="p-8 text-center text-slate-400">Loading delivery view...</div>
       </>
     );
 
@@ -114,20 +114,20 @@ export default function DeliveryView() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-teal-50">
         {/* Header bar */}
-        <div className="bg-white shadow px-4 py-3 flex items-center justify-between">
+        <div className="glass-subtle shadow px-4 py-3 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-[#1F4E79]">
+            <h2 className="text-lg font-bold text-slate-900">
               Delivering to {pledge.ngoName}
             </h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               {pledge.itemName} × {pledge.quantity}
             </p>
           </div>
           <div className="flex items-center gap-4">
             {eta && (
-              <span className="flex items-center gap-1 text-sm text-gray-600">
+              <span className="flex items-center gap-1 text-sm text-slate-600">
                 <Navigation className="w-4 h-4" /> ~{eta} min
               </span>
             )}
@@ -164,7 +164,7 @@ export default function DeliveryView() {
               </Marker>
             )}
             {route && (
-              <Polyline positions={route} color="#2E75B6" weight={4} opacity={0.8} />
+              <Polyline positions={route} color="#0D9488" weight={4} opacity={0.8} />
             )}
           </MapContainer>
         </div>
@@ -173,28 +173,28 @@ export default function DeliveryView() {
         <div className="p-4 flex gap-3 max-w-lg mx-auto">
           <button
             onClick={openGoogleMaps}
-            className="flex-1 bg-[#2E75B6] text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-[#1F4E79] transition"
+            className="flex-1 bg-teal-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-teal-700 transition-all duration-200"
           >
             <Navigation className="w-4 h-4" /> Navigate
           </button>
           <button
             onClick={cancelPledge}
-            className="flex-1 border border-red-400 text-red-600 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-red-50 transition"
+            className="flex-1 border border-red-400 text-red-600 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-red-50 transition-all duration-200"
           >
             <X className="w-4 h-4" /> Cancel Pledge
           </button>
         </div>
 
         {/* NGO contact card */}
-        <div className="max-w-lg mx-auto bg-white rounded-lg shadow p-4 mb-6">
-          <h3 className="font-semibold text-sm text-gray-500 mb-2">
+        <div className="max-w-lg mx-auto glass rounded-2xl p-4 mb-6">
+          <h3 className="font-semibold text-sm text-slate-500 mb-2">
             Drop-off Details
           </h3>
           <p className="text-sm">{pledge.ngoAddress || "Address not available"}</p>
           {pledge.ngoPhone && (
             <p className="text-sm mt-1">
               📞{" "}
-              <a href={`tel:${pledge.ngoPhone}`} className="text-blue-600 underline">
+              <a href={`tel:${pledge.ngoPhone}`} className="text-teal-600 underline">
                 {pledge.ngoPhone}
               </a>
             </p>
@@ -202,7 +202,7 @@ export default function DeliveryView() {
           {pledge.ngoEmail && (
             <p className="text-sm mt-1">
               ✉️{" "}
-              <a href={`mailto:${pledge.ngoEmail}`} className="text-blue-600 underline">
+              <a href={`mailto:${pledge.ngoEmail}`} className="text-teal-600 underline">
                 {pledge.ngoEmail}
               </a>
             </p>

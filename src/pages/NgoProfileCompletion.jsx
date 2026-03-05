@@ -117,17 +117,17 @@ export default function NgoProfileCompletion() {
     return (
       <>
         <Navbar />
-        <div className="p-8 text-center text-gray-400">Loading...</div>
+        <div className="p-8 text-center text-slate-400">Loading...</div>
       </>
     );
 
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-[#1F4E79] text-white px-6 py-6">
+      <div className="min-h-screen bg-teal-50">
+        <div className="glass-nav text-white px-6 py-6">
           <h1 className="text-xl font-bold">Complete Your Profile</h1>
-          <p className="text-blue-200 text-sm mt-1">
+          <p className="text-teal-200 text-sm mt-1">
             Fill in all fields to get verified and appear on the map
           </p>
         </div>
@@ -136,19 +136,19 @@ export default function NgoProfileCompletion() {
           {/* Progress bar */}
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-600">Profile completion</span>
-              <span className="font-medium text-[#2E75B6]">{progress}%</span>
+              <span className="text-slate-600">Profile completion</span>
+              <span className="font-medium text-teal-600">{progress}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="w-full bg-slate-200 rounded-full h-3">
               <div
-                className="h-3 rounded-full bg-[#2E75B6] transition-all duration-500"
+                className="h-3 rounded-full bg-teal-500 transition-all duration-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
 
           {/* Checklist */}
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+          <div className="glass rounded-2xl p-4 space-y-2">
             {REQUIRED_FIELDS.map((f) => {
               const done = completed.some((c) => c.key === f.key);
               const Icon = f.icon;
@@ -158,12 +158,12 @@ export default function NgoProfileCompletion() {
                   className="flex items-center gap-3 text-sm py-1"
                 >
                   {done ? (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <CheckCircle className="w-5 h-5 text-emerald-500" />
                   ) : (
-                    <Circle className="w-5 h-5 text-gray-300" />
+                    <Circle className="w-5 h-5 text-slate-300" />
                   )}
-                  <Icon className="w-4 h-4 text-gray-400" />
-                  <span className={done ? "text-gray-500" : "text-gray-800 font-medium"}>
+                  <Icon className="w-4 h-4 text-slate-400" />
+                  <span className={done ? "text-slate-500" : "text-slate-800 font-medium"}>
                     {f.label}
                   </span>
                 </div>
@@ -172,24 +172,24 @@ export default function NgoProfileCompletion() {
           </div>
 
           {/* Profile form */}
-          <form onSubmit={saveProfile} className="bg-white rounded-lg shadow p-6 space-y-4">
-            <h3 className="font-bold text-[#1F4E79]">Organization Details</h3>
+          <form onSubmit={saveProfile} className="glass rounded-2xl p-6 space-y-4">
+            <h3 className="font-bold text-slate-900">Organization Details</h3>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Organization Name
               </label>
               <input
                 name="organizationName"
                 value={form.organizationName}
                 onChange={handleChange}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-white/30 rounded-xl px-3 py-2 text-sm bg-white/70 backdrop-blur-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none transition-all duration-200"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Description
               </label>
               <textarea
@@ -197,25 +197,25 @@ export default function NgoProfileCompletion() {
                 value={form.description}
                 onChange={handleChange}
                 rows={3}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-white/30 rounded-xl px-3 py-2 text-sm bg-white/70 backdrop-blur-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none transition-all duration-200"
                 placeholder="What does your organization do?"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Address
               </label>
               <input
                 name="address"
                 value={form.address}
                 onChange={handleChange}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-white/30 rounded-xl px-3 py-2 text-sm bg-white/70 backdrop-blur-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none transition-all duration-200"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Location
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -224,20 +224,20 @@ export default function NgoProfileCompletion() {
                   value={form.latitude}
                   onChange={handleChange}
                   placeholder="Latitude"
-                  className="border rounded-lg px-3 py-2 text-sm"
+                  className="border border-white/30 rounded-xl px-3 py-2 text-sm bg-white/70 backdrop-blur-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none transition-all duration-200"
                 />
                 <input
                   name="longitude"
                   value={form.longitude}
                   onChange={handleChange}
                   placeholder="Longitude"
-                  className="border rounded-lg px-3 py-2 text-sm"
+                  className="border border-white/30 rounded-xl px-3 py-2 text-sm bg-white/70 backdrop-blur-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none transition-all duration-200"
                 />
               </div>
               <button
                 type="button"
                 onClick={detectLocation}
-                className="mt-2 text-xs text-[#2E75B6] underline"
+                className="mt-2 text-xs text-teal-600 underline"
               >
                 📍 Detect my location
               </button>
@@ -245,18 +245,18 @@ export default function NgoProfileCompletion() {
 
             <button
               type="submit"
-              className="w-full bg-[#2E75B6] text-white py-2.5 rounded-lg font-semibold hover:bg-[#1F4E79] transition"
+              className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200"
             >
               Save Details
             </button>
           </form>
 
           {/* File uploads */}
-          <div className="bg-white rounded-lg shadow p-6 space-y-4">
-            <h3 className="font-bold text-[#1F4E79]">Upload Documents</h3>
+          <div className="glass rounded-2xl p-6 space-y-4">
+            <h3 className="font-bold text-slate-900">Upload Documents</h3>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Profile Photo
               </label>
               {profile?.profilePhotoUrl && (
@@ -276,7 +276,7 @@ export default function NgoProfileCompletion() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Verification Document (PDF/Image)
               </label>
               {profile?.verificationDocUrl && (
@@ -292,19 +292,19 @@ export default function NgoProfileCompletion() {
             </div>
 
             {uploading && (
-              <p className="text-xs text-gray-400">Uploading...</p>
+              <p className="text-xs text-slate-400">Uploading...</p>
             )}
           </div>
 
           {progress === 100 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-              <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-              <p className="text-sm font-medium text-green-700">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+              <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+              <p className="text-sm font-medium text-emerald-700">
                 Profile complete! Your verification is under review.
               </p>
               <button
                 onClick={() => navigate("/ngo/dashboard")}
-                className="mt-3 text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                className="mt-3 text-sm bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all duration-200"
               >
                 Go to Dashboard →
               </button>
