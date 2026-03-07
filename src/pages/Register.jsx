@@ -32,7 +32,9 @@ export default function Register() {
         formData.append("password", form.password);
         formData.append("location", form.location);
         formData.append("role", "NGO");
-        if (file) formData.append("documents", file);
+        if (file) {
+          formData.append("document", file);
+        }
 
         await api.post("/api/auth/register", formData, {
           headers: { "Content-Type": "multipart/form-data" },
@@ -40,9 +42,11 @@ export default function Register() {
       } else {
         await api.post("/api/auth/register", { ...form, role: "DONOR" });
       }
+      localStorage.setItem("pendingVerificationEmail", form.email);
       navigate("/verify-email");
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed");
+      console.error("REGISTRATION ERROR:", err);
+      setError(err.response?.data?.message || err.message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -67,11 +71,10 @@ export default function Register() {
                 key={r}
                 type="button"
                 onClick={() => setRole(r)}
-                className={`flex-1 py-2.5 rounded-xl font-medium transition-all duration-200 ${
-                  role === r
-                    ? "bg-teal-600 text-white shadow-sm"
-                    : "bg-white/70 border border-slate-200 text-slate-600 hover:bg-white"
-                }`}
+                className={`flex-1 py-2.5 rounded-xl font-medium transition-all duration-200 ${role === r
+                  ? "bg-teal-600 text-white shadow-sm"
+                  : "bg-white/70 border border-slate-200 text-slate-600 hover:bg-white"
+                  }`}
               >
                 {r === "DONOR" ? "Donor" : "NGO"}
               </button>

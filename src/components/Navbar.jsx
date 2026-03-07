@@ -30,23 +30,23 @@ export default function Navbar() {
 
         {user?.role === "DONOR" && (
           <>
-            <Link to="/" className="hover:text-teal-200 transition-all duration-200">
+            <Link to="/map" className="hover:text-teal-200 transition-all duration-200">
               Map
             </Link>
-            <Link to="/dashboard/donor" className="hover:text-teal-200 transition-all duration-200">
+            <Link to="/donor/dashboard" className="hover:text-teal-200 transition-all duration-200">
               My Dashboard
             </Link>
           </>
         )}
 
         {user?.role === "NGO" && (
-          <Link to="/dashboard/ngo" className="hover:text-teal-200 transition-all duration-200">
+          <Link to="/ngo/dashboard" className="hover:text-teal-200 transition-all duration-200">
             Dashboard
           </Link>
         )}
 
         {user?.role === "ADMIN" && (
-          <Link to="/dashboard/admin" className="hover:text-teal-200 transition-all duration-200">
+          <Link to="/admin/dashboard" className="hover:text-teal-200 transition-all duration-200">
             Dashboard
           </Link>
         )}

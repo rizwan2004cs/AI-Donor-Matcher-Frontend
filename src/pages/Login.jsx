@@ -25,11 +25,12 @@ export default function Login() {
       login(user, token);
 
       // Redirect based on role
-      if (user.role === "ADMIN") navigate("/dashboard/admin");
-      else if (user.role === "NGO") navigate("/dashboard/ngo");
-      else navigate("/");
+      if (user.role === "ADMIN") navigate("/admin/dashboard");
+      else if (user.role === "NGO") navigate("/ngo/dashboard");
+      else navigate("/map");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      console.error("LOGIN ERROR:", err);
+      setError(err.response?.data?.message || err.message || "Login failed");
     } finally {
       setLoading(false);
     }
