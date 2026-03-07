@@ -1,21 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import LoadingOverlay from "../components/LoadingOverlay";
 
 export default function Register() {
   const navigate = useNavigate();
+  const { user, login } = useAuth();
   const [role, setRole] = useState("DONOR");
   const [form, setForm] = useState({
     fullName: "",
     email: "",
     password: "",
-    location: "",
   });
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // If already logged in, don't allow access to register page
+  useEffect(() => {
+    if (!user) return;
+
+    if (user.role === "ADMIN") navigate("/admin/dashboard", { replace: true });
+    else if (user.role === "NGO") {
+      navigate(user.profileComplete ? "/ngo/dashboard" : "/ngo/complete-profile", { replace: true });
+    } else navigate("/map", { replace: true });
+  }, [user, navigate]);
 
   const onChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -31,20 +42,25 @@ export default function Register() {
         formData.append("fullName", form.fullName);
         formData.append("email", form.email);
         formData.append("password", form.password);
-        formData.append("location", form.location);
         formData.append("role", "NGO");
         if (file) {
           formData.append("document", file);
         }
 
-        await api.post("/api/auth/register", formData, {
+        const res = await api.post("/api/auth/register", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
+        if (res.data?.token && res.data?.user) {
+          login(res.data.user, res.data.token);
+        }
       } else {
-        await api.post("/api/auth/register", { ...form, role: "DONOR" });
+        const res = await api.post("/api/auth/register", { ...form, role: "DONOR" });
+        if (res.data?.token && res.data?.user) {
+          login(res.data.user, res.data.token);
+        }
       }
       localStorage.setItem("pendingVerificationEmail", form.email);
-      navigate("/verify-email");
+      navigate("/verify-email", { state: { email: form.email } });
     } catch (err) {
       console.error("REGISTRATION ERROR:", err);
       setError(err.response?.data?.message || err.message || "Registration failed");
@@ -105,14 +121,6 @@ export default function Register() {
             type="password"
             placeholder="Password"
             value={form.password}
-            onChange={onChange}
-            required
-            className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"
-          />
-          <input
-            name="location"
-            placeholder="Location"
-            value={form.location}
             onChange={onChange}
             required
             className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"

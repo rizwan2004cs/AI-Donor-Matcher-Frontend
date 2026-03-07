@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import api from "../api/axios";
@@ -7,10 +7,20 @@ import LoadingOverlay from "../components/LoadingOverlay";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { user, login } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // If already logged in, don't show login form — redirect by role
+  useEffect(() => {
+    if (!user) return;
+
+    if (user.role === "ADMIN") navigate("/admin/dashboard", { replace: true });
+    else if (user.role === "NGO") {
+      navigate(user.profileComplete ? "/ngo/dashboard" : "/ngo/complete-profile", { replace: true });
+    } else navigate("/map", { replace: true });
+  }, [user, navigate]);
 
   const onChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -27,8 +37,9 @@ export default function Login() {
 
       // Redirect based on role
       if (user.role === "ADMIN") navigate("/admin/dashboard");
-      else if (user.role === "NGO") navigate("/ngo/dashboard");
-      else navigate("/map");
+      else if (user.role === "NGO") {
+        navigate(user.profileComplete ? "/ngo/dashboard" : "/ngo/complete-profile");
+      } else navigate("/map");
     } catch (err) {
       console.error("LOGIN ERROR:", err);
       setError(err.response?.data?.message || err.message || "Login failed");

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import NeedProgressBar from "../components/NeedProgressBar";
@@ -9,6 +11,8 @@ const URGENCY_OPTIONS = ["NORMAL", "URGENT"];
 const MAX_ACTIVE_NEEDS = 5;
 
 export default function NgoDashboard() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [needs, setNeeds] = useState([]);
   const [pledges, setPledges] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,8 +42,12 @@ export default function NgoDashboard() {
   };
 
   useEffect(() => {
+    if (user?.role === "NGO" && !user?.profileComplete) {
+      navigate("/ngo/complete-profile", { replace: true });
+      return;
+    }
     fetchData();
-  }, []);
+  }, [user, navigate]);
 
   const activeNeeds = needs.filter((n) => n.status === "ACTIVE");
   const fulfilledNeeds = needs.filter((n) => n.status === "FULFILLED");
