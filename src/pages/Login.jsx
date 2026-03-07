@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import LoadingOverlay from "../components/LoadingOverlay";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ export default function Login() {
   return (
     <>
       <Navbar />
+      {loading && <LoadingOverlay message="Logging in..." />}
       <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
         <form
           onSubmit={onSubmit}

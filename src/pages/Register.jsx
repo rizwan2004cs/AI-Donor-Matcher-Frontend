@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import LoadingOverlay from "../components/LoadingOverlay";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -55,6 +56,7 @@ export default function Register() {
   return (
     <>
       <Navbar />
+      {loading && <LoadingOverlay message="Creating Account..." />}
       <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
         <form
           onSubmit={onSubmit}
