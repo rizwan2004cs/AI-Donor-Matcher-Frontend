@@ -19,12 +19,12 @@
 
 | # | Feature | Branch | Status | Description |
 |---|---------|--------|--------|-------------|
-| 1.1 | Donor Registration | `feat/donor-registration` | ⬜ | Full name, email, password, location. POST JSON to `/api/auth/register`. Redirect to email verification screen. |
-| 1.2 | NGO Registration | `feat/ngo-registration` | ⬜ | Same fields + file upload for credentials. POST multipart to `/api/auth/register`. Profile set to PENDING. |
-| 1.3 | Email Verification Screen | `feat/email-verification` | ⬜ | Static pending screen with "Resend" button. Unverified users can browse map but Pledge button is disabled. |
-| 1.4 | Login | `feat/login` | ⬜ | Email + password. Store JWT + user in localStorage via AuthContext. Role-based redirect (Donor → map, NGO → dashboard, Admin → admin dashboard). |
-| 1.5 | Logout | `feat/logout` | ⬜ | Clear token + user from localStorage. Redirect to `/login`. |
-| 1.6 | Protected Routes | `feat/protected-routes` | ⬜ | Role-based route guard. Redirect unauthenticated users to `/login`, wrong-role users to `/`. |
+| 1.1 | Donor Registration | `feat/donor-registration` | ✅ | Full name, email, password, location. POST JSON to `/api/auth/register`. Redirect to email verification screen. |
+| 1.2 | NGO Registration | `feat/ngo-registration` | ✅ | Same fields + file upload for credentials. POST multipart to `/api/auth/register`. Profile set to PENDING. |
+| 1.3 | Email Verification Screen | `feat/email-verification` | ✅ | Static pending screen with "Resend" button. Unverified users can browse map but Pledge button is disabled. |
+| 1.4 | Login | `feat/login` | ✅ | Email + password. Store JWT + user in localStorage via AuthContext. Role-based redirect (Donor → map, NGO → dashboard, Admin → admin dashboard). |
+| 1.5 | Logout | `feat/logout` | ✅ | Clear token + user from localStorage. Redirect to `/login`. |
+| 1.6 | Protected Routes | `feat/protected-routes` | ✅ | Role-based route guard. Redirect unauthenticated users to `/login`, wrong-role users to `/`. |
 
 ---
 
@@ -88,11 +88,11 @@
 
 | # | Component | Branch | Status | Description |
 |---|-----------|--------|--------|-------------|
-| 7.1 | Navbar | `feat/navbar` | ⬜ | Role-based navigation links. Guest / Donor / NGO / Admin variants. |
+| 7.1 | Navbar | `feat/navbar` | ✅ | Role-based navigation links. Guest / Donor / NGO / Admin variants. |
 | 7.2 | TrustBadge | `feat/trust-badge` | ⬜ | Reusable badge: star icon + tier label + numeric score. Colour varies by tier. |
 | 7.3 | NeedProgressBar | `feat/progress-bar` | ⬜ | Pledged / required visual bar with percentage label. |
 | 7.4 | CategoryPin (DivIcon) | `feat/category-pin` | ⬜ | Leaflet `L.divIcon` factory with colour-coded circles per category. |
-| 7.5 | ProtectedRoute | `feat/protected-route` | ⬜ | HOC checking auth + role, redirects on failure. |
+| 7.5 | ProtectedRoute | `feat/protected-route` | ✅ | HOC checking auth + role, redirects on failure. |
 
 ---
 
@@ -100,8 +100,8 @@
 
 | # | Feature | Branch | Status | Description |
 |---|---------|--------|--------|-------------|
-| 8.1 | Axios Instance + JWT Interceptor | `feat/axios-setup` | ⬜ | Base URL from env. Request interceptor attaches `Authorization: Bearer` header. |
-| 8.2 | AuthContext (React Context) | `feat/auth-context` | ⬜ | `user` / `token` state, `login()` / `logout()`, persisted in localStorage. |
+| 8.1 | Axios Instance + JWT Interceptor | `feat/axios-setup` | ✅ | Base URL from env. Request interceptor attaches `Authorization: Bearer` header. |
+| 8.2 | AuthContext (React Context) | `feat/auth-context` | ✅ | `user` / `token` state, `login()` / `logout()`, persisted in localStorage. |
 | 8.3 | PWA Manifest | `feat/pwa-manifest` | ⬜ | `public/manifest.json` with app name, icons, theme colour. |
 | 8.4 | Service Worker | `feat/service-worker` | ⬜ | Cache-first for static, network-first for API. Offline fallback. |
 | 8.5 | Offline Connectivity Check | `feat/offline-check` | ⬜ | `navigator.onLine` guard on all mutating actions. User-friendly offline alert. |
