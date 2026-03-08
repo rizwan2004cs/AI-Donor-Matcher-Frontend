@@ -1,15 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import LoadingOverlay from "../components/LoadingOverlay";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { user, login } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // If already logged in, don't show login form — redirect by role
+  useEffect(() => {
+    if (!user) return;
+
+    if (user.role === "ADMIN") navigate("/admin/dashboard", { replace: true });
+    else if (user.role === "NGO") {
+      navigate(user.profileComplete ? "/ngo/dashboard" : "/ngo/complete-profile", { replace: true });
+    } else navigate("/map", { replace: true });
+  }, [user, navigate]);
 
   const onChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -25,11 +36,13 @@ export default function Login() {
       login(user, token);
 
       // Redirect based on role
-      if (user.role === "ADMIN") navigate("/dashboard/admin");
-      else if (user.role === "NGO") navigate("/dashboard/ngo");
-      else navigate("/");
+      if (user.role === "ADMIN") navigate("/admin/dashboard");
+      else if (user.role === "NGO") {
+        navigate(user.profileComplete ? "/ngo/dashboard" : "/ngo/complete-profile");
+      } else navigate("/map");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      console.error("LOGIN ERROR:", err);
+      setError(err.response?.data?.message || err.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -38,6 +51,7 @@ export default function Login() {
   return (
     <>
       <Navbar />
+      {loading && <LoadingOverlay message="Logging in..." />}
       <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
         <form
           onSubmit={onSubmit}

@@ -37,7 +37,7 @@ export default function NgoProfileCompletion() {
 
   useEffect(() => {
     api
-      .get("/api/ngo/profile")
+      .get("/api/ngo/my/profile")
       .then((res) => {
         setProfile(res.data);
         setForm({
@@ -48,7 +48,9 @@ export default function NgoProfileCompletion() {
           longitude: res.data.longitude || "",
         });
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error("Failed to load NGO profile", err);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -67,14 +69,17 @@ export default function NgoProfileCompletion() {
   const saveProfile = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.put("/api/ngo/profile", form);
+      const res = await api.put("/api/ngo/my/profile", form);
       setProfile(res.data);
-      // Update user context if name changed
-      if (res.data.organizationName) {
-        login({ ...user, name: res.data.organizationName }, localStorage.getItem("token"));
-      }
-    } catch {
-      alert("Failed to save profile");
+      const token = localStorage.getItem("token");
+      const updates = { ...user };
+      if (res.data.organizationName) updates.name = res.data.organizationName;
+      if (res.data.profileComplete === true) updates.profileComplete = true;
+      login(updates, token);
+      if (res.data.profileComplete) navigate("/ngo/dashboard");
+    } catch (err) {
+      console.error("Failed to save NGO profile", err);
+      alert(err.response?.data?.message || "Failed to save profile");
     }
   };
 
@@ -82,15 +87,36 @@ export default function NgoProfileCompletion() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+
     const fd = new FormData();
+    // Backend expects the file under the `file` field name
     fd.append("file", file);
+
+    const endpoint =
+      type === "profile-photo"
+        ? "/api/ngo/my/photo"
+        : "/api/ngo/my/verification-doc";
+
     try {
-      const res = await api.post(`/api/ngo/${type}`, fd, {
+      const res = await api.post(endpoint, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setProfile(res.data);
-    } catch {
-      alert("Upload failed");
+
+      // Backend returns { url: "..." }
+      const url = res.data?.url;
+      if (!url) {
+        console.warn("Upload succeeded but no url in response", res.data);
+      } else {
+        setProfile((prev) => ({
+          ...prev,
+          ...(type === "profile-photo"
+            ? { profilePhotoUrl: url }
+            : { verificationDocUrl: url }),
+        }));
+      }
+    } catch (err) {
+      console.error("NGO upload failed", err);
+      alert(err.response?.data?.message || "Upload failed");
     } finally {
       setUploading(false);
     }

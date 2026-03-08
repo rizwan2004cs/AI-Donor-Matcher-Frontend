@@ -128,38 +128,41 @@ public/
 - **Node.js** ≥ 18
 - **npm** ≥ 9
 
-### Installation
+### First-Time Setup (For the Team)
 
+Follow these exact steps to get the app running on your machine for the first time:
+
+**1. Clone the repo and install dependencies:**
 ```bash
-# Clone the repo
 git clone https://github.com/rizwan2004cs/AI-Donor-Matcher-Frontend.git
 cd AI-Donor-Matcher-Frontend
-
-# Install dependencies
 npm install
 ```
 
-### Environment Variables
+**2. Standard Workflow (Always branch off `main`):**
+To keep our code clean, never work directly on `main`. Always create a new branch for every feature:
+```bash
+git checkout main
+git pull origin main
+git checkout -b feat/<your-new-feature-name>
+```
+Once your feature is ready, push it and open a Pull Request to `main`.
+You must create a `.env` file in the root folder (right next to `package.json`). If you don't do this, the frontend won't know where to send requests and you will get network errors.
 
-Create a `.env` file in the project root:
-
+Create a `.env` file and paste the following into it:
 ```env
-VITE_API_BASE_URL=https://your-render-backend.onrender.com
+# URL for the local Spring Boot backend (make sure it's running!)
+VITE_API_BASE_URL=http://localhost:8080
+
+# URL for OSRM (Map navigation routes)
 VITE_OSRM_URL=https://router.project-osrm.org
 ```
 
-| Variable | Description |
-|----------|-------------|
-| `VITE_API_BASE_URL` | Base URL of the Spring Boot backend |
-| `VITE_OSRM_URL` | OSRM routing server URL (public instance or self-hosted) |
-
-### Development
-
+**3. Run the Development Server:**
 ```bash
 npm run dev
 ```
-
-Opens at `http://localhost:5173`.
+Open `http://localhost:5173` in your browser.
 
 ### Production Build
 
