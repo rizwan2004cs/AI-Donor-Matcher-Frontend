@@ -139,14 +139,14 @@ cd AI-Donor-Matcher-Frontend
 npm install
 ```
 
-**2. Always branch off `main` for new features:**
+**2. Standard Workflow (Always branch off `main`):**
+To keep our code clean, never work directly on `main`. Always create a new branch for every feature:
 ```bash
 git checkout main
 git pull origin main
 git checkout -b feat/<your-new-feature-name>
 ```
-
-**3. Setup your Environment Variables:**
+Once your feature is ready, push it and open a Pull Request to `main`.
 You must create a `.env` file in the root folder (right next to `package.json`). If you don't do this, the frontend won't know where to send requests and you will get network errors.
 
 Create a `.env` file and paste the following into it:
