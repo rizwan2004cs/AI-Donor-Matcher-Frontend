@@ -6,6 +6,7 @@ import Navbar from "../components/Navbar";
 import { createCategoryIcon } from "../components/CategoryPin";
 import { Navigation, Clock, X } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 
 const OSRM_URL = import.meta.env.VITE_OSRM_URL || "https://router.project-osrm.org";
 
@@ -20,6 +21,7 @@ export default function DeliveryView() {
   const [timeLeft, setTimeLeft] = useState(null);
   const [loading, setLoading] = useState(!location.state);
   const timerRef = useRef(null);
+  const online = useOnlineStatus();
 
   // Fetch pledge details if not provided via state
   useEffect(() => {
@@ -73,6 +75,10 @@ export default function DeliveryView() {
   }, [pledge]);
 
   const cancelPledge = async () => {
+    if (!online) {
+      alert("You are offline. This action requires an internet connection.");
+      return;
+    }
     if (!window.confirm("Cancel this pledge?")) return;
     try {
       await api.put(`/api/pledges/${pledgeId}/cancel`);
@@ -179,7 +185,8 @@ export default function DeliveryView() {
           </button>
           <button
             onClick={cancelPledge}
-            className="flex-1 border border-red-400 text-red-600 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-red-50 transition-all duration-200"
+            disabled={!online}
+            className="flex-1 border border-red-400 text-red-600 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-red-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-4 h-4" /> Cancel Pledge
           </button>

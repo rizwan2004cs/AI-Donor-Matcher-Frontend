@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import LoadingOverlay from "../components/LoadingOverlay";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 
 function normalizeAuthUser(data) {
   return (
@@ -23,6 +24,7 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const online = useOnlineStatus();
 
   // If already logged in, don't show login form — redirect by role
   useEffect(() => {
@@ -38,6 +40,11 @@ export default function Login() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (!online) {
+      setError("You are offline. Reconnect before logging in.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -97,10 +104,10 @@ export default function Login() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !online}
             className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50"
           >
-            {loading ? "Logging in..." : "Log In"}
+            {loading ? "Logging in..." : online ? "Log In" : "Offline"}
           </button>
 
           <p className="text-sm text-slate-500">

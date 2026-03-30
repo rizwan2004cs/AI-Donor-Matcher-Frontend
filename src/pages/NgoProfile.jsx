@@ -6,6 +6,7 @@ import Navbar from "../components/Navbar";
 import TrustBadge from "../components/TrustBadge";
 import NeedProgressBar from "../components/NeedProgressBar";
 import { CATEGORY_COLORS } from "../utils/categoryColors";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 
 const REPORT_REASONS = ["FRAUD", "INACTIVE", "MISLEADING", "OTHER"];
 
@@ -19,6 +20,7 @@ export default function NgoProfile() {
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reporting, setReporting] = useState(false);
+  const online = useOnlineStatus();
 
   useEffect(() => {
     api
@@ -38,6 +40,10 @@ export default function NgoProfile() {
 
   const submitReport = async () => {
     if (!reportReason) return;
+    if (!online) {
+      alert("You are offline. Reconnect before sending a report.");
+      return;
+    }
     setReporting(true);
     try {
       await api.post(`/api/ngos/${id}/report`, { reason: reportReason });
@@ -228,10 +234,10 @@ export default function NgoProfile() {
                 </button>
                 <button
                   onClick={submitReport}
-                  disabled={reporting || !reportReason}
+                  disabled={reporting || !reportReason || !online}
                   className="flex-1 py-2 bg-red-500 text-white rounded-xl text-sm disabled:opacity-50 hover:bg-red-600 transition-all duration-200"
                 >
-                  {reporting ? "Submitting..." : "Submit Report"}
+                  {reporting ? "Submitting..." : online ? "Submit Report" : "Offline"}
                 </button>
               </div>
             </div>

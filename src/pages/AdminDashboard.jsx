@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 import {
   Users,
   ShieldCheck,
@@ -20,6 +21,7 @@ export default function AdminDashboard() {
   const [ngos, setNgos] = useState([]);
   const [tab, setTab] = useState("verify"); // 'verify' | 'reports' | 'ngos'
   const [loading, setLoading] = useState(true);
+  const online = useOnlineStatus();
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -44,6 +46,10 @@ export default function AdminDashboard() {
   }, []);
 
   const approveNgo = async (ngoId) => {
+    if (!online) {
+      alert("You are offline. Reconnect before approving NGOs.");
+      return;
+    }
     try {
       await api.put(`/api/admin/verify/${ngoId}/approve`);
       setPendingVerifications((prev) => prev.filter((v) => v.id !== ngoId));
@@ -54,6 +60,10 @@ export default function AdminDashboard() {
   };
 
   const rejectNgo = async (ngoId) => {
+    if (!online) {
+      alert("You are offline. Reconnect before rejecting NGOs.");
+      return;
+    }
     const reason = prompt("Rejection reason:");
     if (!reason) return;
     try {
@@ -65,6 +75,10 @@ export default function AdminDashboard() {
   };
 
   const dismissReport = async (reportId) => {
+    if (!online) {
+      alert("You are offline. Reconnect before dismissing reports.");
+      return;
+    }
     try {
       await api.put(`/api/admin/reports/${reportId}/dismiss`);
       setReports((prev) => prev.filter((r) => r.id !== reportId));
@@ -74,6 +88,10 @@ export default function AdminDashboard() {
   };
 
   const suspendNgo = async (ngoId) => {
+    if (!online) {
+      alert("You are offline. Reconnect before suspending NGOs.");
+      return;
+    }
     if (!window.confirm("Suspend this NGO?")) return;
     try {
       await api.put(`/api/admin/ngos/${ngoId}/suspend`);
@@ -86,6 +104,10 @@ export default function AdminDashboard() {
   };
 
   const reinstateNgo = async (ngoId) => {
+    if (!online) {
+      alert("You are offline. Reconnect before reinstating NGOs.");
+      return;
+    }
     try {
       await api.put(`/api/admin/ngos/${ngoId}/reinstate`);
       setNgos((prev) =>
@@ -212,15 +234,17 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={() => approveNgo(v.id)}
-                      className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-emerald-700 transition-all duration-200"
+                      disabled={!online}
+                      className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-emerald-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <CheckCircle className="w-3 h-3" /> Approve
+                      <CheckCircle className="w-3 h-3" /> {online ? "Approve" : "Offline"}
                     </button>
                     <button
                       onClick={() => rejectNgo(v.id)}
-                      className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-600 transition-all duration-200"
+                      disabled={!online}
+                      className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <XCircle className="w-3 h-3" /> Reject
+                      <XCircle className="w-3 h-3" /> {online ? "Reject" : "Offline"}
                     </button>
                   </div>
                 </div>
@@ -264,15 +288,17 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={() => suspendNgo(r.ngoId)}
-                        className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-600 transition-all duration-200"
+                        disabled={!online}
+                        className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Ban className="w-3 h-3" /> Suspend
+                        <Ban className="w-3 h-3" /> {online ? "Suspend" : "Offline"}
                       </button>
                       <button
                         onClick={() => dismissReport(r.id)}
-                        className="text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-xl hover:bg-white/40 transition-all duration-200"
+                        disabled={!online}
+                        className="text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-xl hover:bg-white/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Dismiss
+                        {online ? "Dismiss" : "Offline"}
                       </button>
                     </div>
                   </div>
@@ -329,16 +355,18 @@ export default function AdminDashboard() {
                     {n.suspended ? (
                       <button
                         onClick={() => reinstateNgo(n.id)}
-                        className="text-xs border border-emerald-400 text-emerald-600 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-emerald-50 transition-all duration-200"
+                        disabled={!online}
+                        className="text-xs border border-emerald-400 text-emerald-600 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-emerald-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <RotateCcw className="w-3 h-3" /> Reinstate
+                        <RotateCcw className="w-3 h-3" /> {online ? "Reinstate" : "Offline"}
                       </button>
                     ) : (
                       <button
                         onClick={() => suspendNgo(n.id)}
-                        className="text-xs border border-red-300 text-red-500 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-50 transition-all duration-200"
+                        disabled={!online}
+                        className="text-xs border border-red-300 text-red-500 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Ban className="w-3 h-3" /> Suspend
+                        <Ban className="w-3 h-3" /> {online ? "Suspend" : "Offline"}
                       </button>
                     )}
                   </div>

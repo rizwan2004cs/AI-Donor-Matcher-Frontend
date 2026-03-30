@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 
 export default function EmailVerificationPending() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function EmailVerificationPending() {
   const [verified, setVerified] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+  const online = useOnlineStatus();
 
   useEffect(() => {
     const paramEmail = searchParams.get("email");
@@ -38,6 +40,10 @@ export default function EmailVerificationPending() {
     }
     if (otp.length < 4) {
       setError("Please enter the verification code sent to your email.");
+      return;
+    }
+    if (!online) {
+      setError("You are offline. Reconnect before verifying your email.");
       return;
     }
 
@@ -65,6 +71,12 @@ export default function EmailVerificationPending() {
       setError("Could not resend — please register again.");
       return;
     }
+    if (!online) {
+      setMessage(null);
+      setError("You are offline. Reconnect before resending a verification code.");
+      return;
+    }
+
     setResending(true);
     setMessage(null);
     setError(null);
@@ -129,10 +141,10 @@ export default function EmailVerificationPending() {
 
                   <button
                     type="submit"
-                    disabled={verifying || otp.length === 0}
+                    disabled={verifying || otp.length === 0 || !online}
                     className="w-full bg-teal-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-teal-700 transition-all duration-200 disabled:opacity-50"
                   >
-                    {verifying ? "Verifying..." : "Verify Code"}
+                    {verifying ? "Verifying..." : online ? "Verify Code" : "Offline"}
                   </button>
                 </form>
               )}
@@ -140,7 +152,7 @@ export default function EmailVerificationPending() {
               <button
                 type="button"
                 onClick={resend}
-                disabled={resending || !email}
+                disabled={resending || !email || !online}
                 className="mt-2 text-sm text-teal-600 hover:text-teal-700 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-200"
               >
                 {resending ? "Sending code..." : "Resend verification code"}
