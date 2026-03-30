@@ -24,10 +24,15 @@ const TABS = [
 ];
 
 const STAT_CARDS = [
-  { key: "totalDonors", label: "Total Donors", icon: Users, color: "blue" },
   { key: "approvedNgos", label: "Approved NGOs", icon: ShieldCheck, color: "green" },
-  { key: "pendingNgos", label: "Pending NGOs", icon: AlertTriangle, color: "yellow" },
-  { key: "totalReports", label: "Open Reports", icon: Flag, color: "red" },
+  { key: "activeNeeds", label: "Active Needs", icon: Users, color: "blue" },
+  { key: "pledgesToday", label: "Pledges Today", icon: Flag, color: "yellow" },
+  {
+    key: "fulfillmentsThisMonth",
+    label: "Fulfillments This Month",
+    icon: CheckCircle,
+    color: "red",
+  },
 ];
 
 function titleCase(value) {
@@ -65,6 +70,7 @@ function normalizeNgo(ngo) {
       typeof ngo?.activeNeedsCount === "number" ? ngo.activeNeedsCount : null,
     rejectionReason: ngo?.rejectionReason || "",
     verifiedAt: ngo?.verifiedAt || "",
+    createdAt: ngo?.createdAt || "",
   };
 }
 
@@ -124,6 +130,9 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedReportNgoId, setExpandedReportNgoId] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
   const [suspendTarget, setSuspendTarget] = useState(null);
   const [suspending, setSuspending] = useState(false);
   const [suspendResult, setSuspendResult] = useState(null);
@@ -190,19 +199,32 @@ export default function AdminDashboard() {
     }
   };
 
-  const rejectNgo = async (ngoId) => {
+  const openRejectModal = (ngo) => {
+    setRejectTarget(ngo);
+    setRejectReason("");
+  };
+
+  const closeRejectModal = () => {
+    setRejectTarget(null);
+    setRejectReason("");
+    setRejecting(false);
+  };
+
+  const rejectNgo = async () => {
     if (!online) {
       alert("You are offline. Reconnect before rejecting NGOs.");
       return;
     }
+    if (!rejectTarget || !rejectReason.trim()) return;
 
-    const reason = window.prompt("Enter a rejection reason for this NGO:");
-    if (!reason) return;
+    setRejecting(true);
 
     try {
-      await api.post(`/api/admin/ngos/${ngoId}/reject`, { reason });
+      await api.post(`/api/admin/ngos/${rejectTarget.id}/reject`, {
+        reason: rejectReason.trim(),
+      });
       setPendingVerifications((current) =>
-        current.filter((ngo) => ngo.id !== ngoId)
+        current.filter((ngo) => ngo.id !== rejectTarget.id)
       );
       setStats((current) =>
         current
@@ -212,8 +234,10 @@ export default function AdminDashboard() {
             }
           : current
       );
+      closeRejectModal();
     } catch (err) {
       alert(err.response?.data?.message || "Failed to reject NGO.");
+      setRejecting(false);
     }
   };
 
@@ -344,6 +368,9 @@ export default function AdminDashboard() {
                         <p className="text-xl font-semibold text-slate-900">{ngo.name}</p>
                         <p className="text-sm text-slate-600 mt-1">{ngo.email}</p>
                         <p className="text-sm text-slate-500 mt-1">{ngo.address}</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Submitted {formatDateTime(ngo.createdAt)}
+                        </p>
 
                         {ngo.documentUrl && (
                           <a
@@ -369,7 +396,7 @@ export default function AdminDashboard() {
                         {online ? "Approve" : "Offline"}
                       </button>
                       <button
-                        onClick={() => rejectNgo(ngo.id)}
+                        onClick={() => openRejectModal(ngo)}
                         disabled={!online}
                         className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                       >
@@ -628,6 +655,47 @@ export default function AdminDashboard() {
                 <button
                   onClick={closeSuspendFlow}
                   disabled={suspending}
+                  className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {rejectTarget && (
+          <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-8 shadow-lg max-w-md w-full">
+              <div className="flex items-center gap-3 text-red-600">
+                <XCircle className="h-6 w-6" />
+                <h2 className="text-2xl font-semibold text-slate-900">Reject NGO</h2>
+              </div>
+
+              <p className="text-sm text-slate-600 mt-4">
+                Provide a reason for rejecting{" "}
+                <span className="font-medium">{rejectTarget.name}</span>.
+              </p>
+
+              <textarea
+                value={rejectReason}
+                onChange={(event) => setRejectReason(event.target.value)}
+                rows={4}
+                placeholder="Explain what needs to be corrected before approval."
+                className="mt-4 w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
+              />
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={rejectNgo}
+                  disabled={rejecting || !rejectReason.trim() || !online}
+                  className="bg-red-500 text-white hover:bg-red-600 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {rejecting ? "Rejecting..." : online ? "Confirm Reject" : "Offline"}
+                </button>
+                <button
+                  onClick={closeRejectModal}
+                  disabled={rejecting}
                   className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 disabled:opacity-50"
                 >
                   Cancel
