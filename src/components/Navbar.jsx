@@ -32,7 +32,7 @@ export default function Navbar() {
 
             {user?.role === "DONOR" && (
               <>
-                <Link to="/map" className="hover:text-teal-200 transition-all duration-200">
+                <Link to="/" className="hover:text-teal-200 transition-all duration-200">
                   Map
                 </Link>
                 <Link

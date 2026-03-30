@@ -77,7 +77,7 @@ export default function PledgeScreen() {
               profile because the backend has not yet confirmed `GET /api/needs/{needId}`.
             </p>
             <button
-              onClick={() => navigate("/map")}
+              onClick={() => navigate("/")}
               className="bg-teal-600 text-white py-2.5 px-5 rounded-xl font-medium hover:bg-teal-700 transition-all duration-200"
             >
               Back to Discovery Map
