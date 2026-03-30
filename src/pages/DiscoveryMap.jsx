@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import api from "../api/axios";
+import { useAuth } from "../auth/AuthContext";
 import Navbar from "../components/Navbar";
 import TrustBadge from "../components/TrustBadge";
 import {
@@ -11,7 +12,9 @@ import {
 import { CATEGORY_OPTIONS, CATEGORY_COLORS } from "../utils/categoryColors";
 import {
   ArrowRight,
+  Clock3,
   MapPinned,
+  Package,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -32,7 +35,9 @@ function RecenterOnChange({ center, zoom = 12 }) {
 
 export default function DiscoveryMap() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [ngos, setNgos] = useState([]);
+  const [activePledges, setActivePledges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [hasUserLocation, setHasUserLocation] = useState(false);
@@ -108,6 +113,21 @@ export default function DiscoveryMap() {
   useEffect(() => {
     fetchNgos();
   }, [fetchNgos]);
+
+  useEffect(() => {
+    if (!user || user.role !== "DONOR") {
+      setActivePledges([]);
+      return;
+    }
+
+    api
+      .get("/api/pledges/active")
+      .then((response) => {
+        const pledges = Array.isArray(response.data) ? response.data : [];
+        setActivePledges(pledges);
+      })
+      .catch(() => setActivePledges([]));
+  }, [user]);
 
   const [searchInput, setSearchInput] = useState("");
   useEffect(() => {
@@ -212,12 +232,57 @@ export default function DiscoveryMap() {
     navigate(`/ngo/${ngoId}`);
   };
 
+  const primaryPledge = activePledges[0];
+  const primaryPledgeNeed = primaryPledge?.need || {};
+  const primaryPledgeNgo = primaryPledgeNeed?.ngo || {};
+
   return (
     <>
       <Navbar />
       <div className="bg-teal-50">
         <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <div className="overflow-hidden rounded-[30px] border border-white/70 bg-white/45 shadow-[0_24px_80px_rgba(15,118,110,0.08)] backdrop-blur-sm">
+            {primaryPledge && (
+              <div className="border-b border-white/40 bg-teal-50/90 px-5 py-3 sm:px-6">
+                <div className="flex flex-col gap-3 rounded-2xl border border-teal-100 bg-white/80 px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-2xl bg-teal-100 p-2.5 text-teal-700">
+                      <Package className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-600">
+                        Active pledge
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {primaryPledgeNeed?.itemName || "Active delivery"} x{" "}
+                        {primaryPledge?.quantity || 0}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {primaryPledgeNgo?.name || "NGO unavailable"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {primaryPledge?.expiresAt && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                        <Clock3 className="h-3.5 w-3.5" />
+                        Delivery in progress
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/delivery/${primaryPledge.id}`)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-teal-700"
+                    >
+                      Open delivery
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="border-b border-white/40 bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-600 px-5 py-4 text-white sm:px-6">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-2xl">

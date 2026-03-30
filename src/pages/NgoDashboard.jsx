@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   CircleCheckBig,
+  Clock3,
   ImagePlus,
   Lock,
   Package,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import { useAuth } from "../auth/AuthContext";
 import NeedEditorModal from "../components/NeedEditorModal";
 import NeedProgressBar from "../components/NeedProgressBar";
 import TrustBadge from "../components/TrustBadge";
@@ -26,6 +28,7 @@ const MAX_ACTIVE_NEEDS = 5;
 
 export default function NgoDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [profile, setProfile] = useState(() => normalizeNgoProfile());
   const [needs, setNeeds] = useState([]);
   const [incomingPledges, setIncomingPledges] = useState([]);
@@ -33,6 +36,7 @@ export default function NgoDashboard() {
   const [showNeedModal, setShowNeedModal] = useState(false);
   const [editingNeed, setEditingNeed] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [receivingPledgeId, setReceivingPledgeId] = useState(null);
   const [error, setError] = useState(null);
   const online = useOnlineStatus();
 
@@ -129,26 +133,36 @@ export default function NgoDashboard() {
     }
   };
 
-  const handleFulfillNeed = async (needId) => {
+  const handleReceivePledge = async (pledgeId) => {
     if (!online) {
-      setError("You are offline. Reconnect before marking a need as fulfilled.");
-      return;
-    }
-    if (!window.confirm("Mark this need as fulfilled? This action cannot be undone.")) {
+      setError("You are offline. Reconnect before receiving a pledge.");
       return;
     }
 
+    setError(null);
+    setReceivingPledgeId(pledgeId);
+
     try {
-      await api.patch(`/api/needs/${needId}/fulfill`);
+      await api.patch(`/api/ngo/my/pledges/${pledgeId}/receive`);
       await loadDashboard();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to mark need as fulfilled.");
+      setError(err.response?.data?.error || "Failed to receive pledge.");
+    } finally {
+      setReceivingPledgeId(null);
     }
   };
 
   const activeNeeds = needs.filter(
     (need) => !["FULFILLED", "EXPIRED"].includes(need.status)
   );
+  const incomingPledgeNeedSummary = incomingPledges.reduce((acc, pledge) => {
+    if (!pledge?.needId) return acc;
+    const current = acc.get(pledge.needId);
+    if (!current || (pledge.createdAt || "") > (current.createdAt || "")) {
+      acc.set(pledge.needId, pledge);
+    }
+    return acc;
+  }, new Map());
   const completion = getNgoProfileCompletion(profile);
   const canAddNeed = activeNeeds.length < MAX_ACTIVE_NEEDS;
   const hasTrustMetrics =
@@ -175,12 +189,22 @@ export default function NgoDashboard() {
       <div className="min-h-screen bg-teal-50">
         <main className="max-w-5xl mx-auto px-6 py-8">
           <header>
+            <button
+              type="button"
+              onClick={() => navigate("/ngo/complete-profile")}
+              className="text-left text-sm font-medium text-teal-700 transition-all duration-200 hover:text-teal-800"
+            >
+              {profile.name
+                ? `Managing ${profile.name}`
+                : user?.fullName
+                  ? `Welcome back, ${user.fullName}`
+                  : "Welcome back"}
+            </button>
             <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
               NGO Dashboard
             </h1>
             <p className="text-slate-600 mt-1">
-              Manage the agreed need workflow while keeping unsupported incoming
-              pledges behind an explicit backend dependency.
+              Manage active needs and confirm donor deliveries one pledge at a time.
             </p>
           </header>
 
@@ -191,9 +215,13 @@ export default function NgoDashboard() {
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
                     Organization
                   </p>
-                  <h2 className="text-2xl font-semibold text-slate-900 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/ngo/complete-profile")}
+                    className="mt-1 text-left text-2xl font-semibold text-slate-900 transition-all duration-200 hover:text-teal-700"
+                  >
                     {profile.name || "Your NGO"}
-                  </h2>
+                  </button>
 
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     {hasTrustMetrics ? (
@@ -283,9 +311,16 @@ export default function NgoDashboard() {
               ) : (
                 <div className="mt-6 space-y-4">
                   {activeNeeds.map((need) => {
-                    const pledged = Number(need.quantityPledged ?? 0);
+                    const summary = incomingPledgeNeedSummary.get(need.id);
+                    const pledged = Number(
+                      summary?.needQuantityPledged ?? need.quantityPledged ?? 0
+                    );
+                    const received = Number(summary?.needQuantityReceived ?? 0);
                     const required = Number(need.quantityRequired ?? 0);
-                    const remaining = Math.max(required - pledged, 0);
+                    const remaining = Math.max(
+                      Number(summary?.needQuantityRemaining ?? required - received),
+                      0
+                    );
                     const isLocked = pledged > 0;
 
                     return (
@@ -315,7 +350,7 @@ export default function NgoDashboard() {
                               {remaining} remaining
                             </p>
                             <p className="text-xs text-slate-500">
-                              {pledged} pledged / {required} required
+                              {received} received • {pledged} pledged / {required} required
                             </p>
                           </div>
                         </div>
@@ -349,14 +384,9 @@ export default function NgoDashboard() {
 
                         {isLocked && (
                           <div className="mt-4 flex justify-end">
-                            <button
-                              onClick={() => handleFulfillNeed(need.id)}
-                              disabled={!online}
-                              className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center gap-2 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <CircleCheckBig className="h-4 w-4" />
-                              {online ? "Mark as Fulfilled" : "Offline"}
-                            </button>
+                            <div className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-2 text-sm text-teal-700">
+                              Confirm deliveries from the incoming pledges list below.
+                            </div>
                           </div>
                         )}
                       </article>
@@ -371,8 +401,8 @@ export default function NgoDashboard() {
                 Incoming Pledges
               </h2>
               <p className="text-sm text-slate-600 mt-2">
-                Uses the new incoming-pledges endpoint so NGOs can monitor active
-                donor commitments tied to their needs.
+                Confirm each donor delivery here. Receiving a pledge updates the related
+                need totals without closing the need early.
               </p>
 
               {incomingPledges.length === 0 ? (
@@ -385,7 +415,9 @@ export default function NgoDashboard() {
                   {incomingPledges.map((pledge) => (
                     <article
                       key={pledge.pledgeId}
-                      className="glass-subtle rounded-2xl p-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                      className={`glass-subtle rounded-2xl p-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${
+                        receivingPledgeId === pledge.pledgeId ? "opacity-80" : ""
+                      }`}
                     >
                       <div>
                         <h3 className="text-lg font-semibold text-slate-900">
@@ -397,12 +429,48 @@ export default function NgoDashboard() {
                         <p className="text-sm text-slate-500 mt-1">
                           {pledge.donorEmail}
                         </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                            {CATEGORY_LABELS[pledge.category] || pledge.category || "Other"}
+                          </span>
+                          <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700">
+                            {pledge.needQuantityRemaining} still needed
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                            {pledge.needQuantityReceived} received / {pledge.needQuantityRequired} required
+                          </span>
+                        </div>
                       </div>
 
                       <div className="text-left sm:text-right">
-                        <p className="text-sm font-medium text-slate-900">
-                          {pledge.status || "ACTIVE"}
-                        </p>
+                        <div className="flex flex-col gap-3 sm:items-end">
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">
+                              {pledge.status || "ACTIVE"}
+                            </p>
+                            {pledge.expiresAt && pledge.status === "ACTIVE" && (
+                              <p className="mt-1 inline-flex items-center gap-1 text-xs text-amber-700">
+                                <Clock3 className="h-3.5 w-3.5" />
+                                Expires {new Date(pledge.expiresAt).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                          {pledge.status === "ACTIVE" && (
+                            <button
+                              type="button"
+                              onClick={() => handleReceivePledge(pledge.pledgeId)}
+                              disabled={!online || receivingPledgeId === pledge.pledgeId}
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <CircleCheckBig className="h-4 w-4" />
+                              {receivingPledgeId === pledge.pledgeId
+                                ? "Receiving..."
+                                : online
+                                  ? "Receive pledge"
+                                  : "Offline"}
+                            </button>
+                          )}
+                        </div>
                         <p className="text-xs text-slate-500 mt-1">
                           {pledge.createdAt
                             ? new Date(pledge.createdAt).toLocaleString()

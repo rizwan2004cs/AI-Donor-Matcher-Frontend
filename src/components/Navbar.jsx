@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { CircleUserRound } from "lucide-react";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -18,6 +19,16 @@ export default function Navbar() {
     navigate("/login");
   };
 
+  const displayName = user?.fullName || user?.email || "";
+  const profilePath =
+    user?.role === "NGO"
+      ? "/ngo/complete-profile"
+      : user?.role === "DONOR"
+        ? "/donor/dashboard"
+        : user?.role === "ADMIN"
+          ? "/admin/dashboard"
+          : "/login";
+
   return (
     <header className="bg-teal-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
@@ -27,6 +38,18 @@ export default function Navbar() {
           </Link>
 
           <div className="flex items-center gap-5 text-sm">
+            {user && displayName && (
+              <button
+                type="button"
+                onClick={() => navigate(profilePath)}
+                className="hidden items-center gap-2 rounded-xl bg-white/10 px-3 py-1.5 text-sm text-teal-50/95 transition-all duration-200 hover:bg-white/20 md:inline-flex"
+                title={user?.role === "NGO" ? "Open profile settings" : "Open your dashboard"}
+              >
+                <CircleUserRound className="h-4 w-4 text-teal-100" />
+                <span className="max-w-[220px] truncate font-medium">{displayName}</span>
+              </button>
+            )}
+
             {!user && (
               <>
                 <Link to="/login" className="hover:text-teal-200 transition-all duration-200">
