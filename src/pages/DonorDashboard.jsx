@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import { useAuth } from "../auth/AuthContext";
 import Navbar from "../components/Navbar";
 import { CATEGORY_COLORS } from "../utils/categoryColors";
 import {
@@ -57,17 +58,27 @@ function isExpiringSoon(expiresAt) {
   return diff > 0 && diff <= 6 * 60 * 60 * 1000;
 }
 
+function getApiErrorMessage(err, fallback) {
+  return (
+    err?.response?.data?.error ||
+    err?.response?.data?.message ||
+    fallback
+  );
+}
+
 export default function DonorDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const online = useOnlineStatus();
   const [tab, setTab] = useState("active");
   const [activePledges, setActivePledges] = useState([]);
   const [history, setHistory] = useState([]);
   const [activeLoading, setActiveLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyFetched, setHistoryFetched] = useState(false);
   const [error, setError] = useState(null);
+  const [cancellingPledgeId, setCancellingPledgeId] = useState(null);
 
-  const historyLoaded = useMemo(() => history.length > 0, [history]);
   const fulfilledCount = useMemo(
     () => history.filter((pledge) => pledge.status === "FULFILLED").length,
     [history]
@@ -86,11 +97,7 @@ export default function DonorDashboard() {
         (Array.isArray(response.data) ? response.data : []).map(normalizePledge)
       );
     } catch (err) {
-      setError(
-        err.response?.data?.error ||
-          err.response?.data?.message ||
-          "Failed to load active pledges."
-      );
+      setError(getApiErrorMessage(err, "Failed to load active pledges."));
     } finally {
       setActiveLoading(false);
     }
@@ -105,12 +112,9 @@ export default function DonorDashboard() {
         (Array.isArray(response.data) ? response.data : []).map(normalizePledge)
       );
     } catch (err) {
-      setError(
-        err.response?.data?.error ||
-          err.response?.data?.message ||
-          "Failed to load pledge history."
-      );
+      setError(getApiErrorMessage(err, "Failed to load pledge history."));
     } finally {
+      setHistoryFetched(true);
       setHistoryLoading(false);
     }
   };
@@ -120,9 +124,19 @@ export default function DonorDashboard() {
   }, []);
 
   useEffect(() => {
-    if (tab !== "history" || historyLoaded) return;
+    if (tab !== "history" || historyFetched) return;
     loadHistory();
-  }, [tab, historyLoaded]);
+  }, [tab, historyFetched]);
+
+  useEffect(() => {
+    if (activeLoading || activePledges.length > 0 || historyFetched || historyLoading) return;
+    loadHistory();
+  }, [activeLoading, activePledges.length, historyFetched, historyLoading]);
+
+  useEffect(() => {
+    if (tab !== "active" || activePledges.length > 0 || history.length === 0) return;
+    setTab("history");
+  }, [tab, activePledges.length, history.length]);
 
   const cancelPledge = async (pledgeId) => {
     if (!online) {
@@ -132,17 +146,16 @@ export default function DonorDashboard() {
     if (!window.confirm("Cancel this pledge?")) return;
 
     setError(null);
+    setCancellingPledgeId(pledgeId);
 
     try {
       await api.delete(`/api/pledges/${pledgeId}`);
-      await loadActivePledges();
+      await Promise.all([loadActivePledges(), loadHistory()]);
     } catch (err) {
-      setError(
-        err.response?.data?.error ||
-          err.response?.data?.message ||
-          "Failed to cancel pledge."
-      );
-      await loadActivePledges();
+      setError(getApiErrorMessage(err, "Failed to cancel pledge."));
+      await Promise.all([loadActivePledges(), loadHistory()]);
+    } finally {
+      setCancellingPledgeId(null);
     }
   };
 
@@ -181,12 +194,22 @@ export default function DonorDashboard() {
 
     return activePledges.map((pledge) => {
       const countdown = formatCountdown(pledge.expiresAt);
+      const isCancelling = cancellingPledgeId === pledge.id;
 
       return (
         <article
           key={pledge.id}
-          className="glass rounded-[26px] border border-white/60 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          className={`glass relative rounded-[26px] border border-white/60 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+            isCancelling ? "pointer-events-none opacity-80" : ""
+          }`}
         >
+          {isCancelling && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-[26px] bg-white/75 backdrop-blur-sm">
+              <div className="h-8 w-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
+              <p className="text-sm font-medium text-slate-700">Cancelling pledge...</p>
+            </div>
+          )}
+
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
               <div
@@ -236,18 +259,19 @@ export default function DonorDashboard() {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => navigate(`/delivery/${pledge.id}`)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-teal-700 hover:shadow"
+                  disabled={isCancelling}
+                  className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-teal-700 hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Navigation className="h-4 w-4" />
                   Open delivery
                 </button>
                 <button
                   onClick={() => cancelPledge(pledge.id)}
-                  disabled={!online}
+                  disabled={!online || isCancelling}
                   className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <X className="h-4 w-4" />
-                  {online ? "Cancel pledge" : "Offline"}
+                  {!online ? "Offline" : isCancelling ? "Cancelling..." : "Cancel pledge"}
                 </button>
               </div>
             </div>
@@ -350,6 +374,9 @@ export default function DonorDashboard() {
               <div className="max-w-2xl">
                 <p className="text-xs font-semibold uppercase tracking-[0.32em] text-teal-100/80">
                   Donor Space
+                </p>
+                <p className="mt-2 text-sm font-medium text-teal-50/85">
+                  {user?.fullName ? `Welcome back, ${user.fullName}` : "Welcome back"}
                 </p>
                 <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-[2rem]">
                   Donor Dashboard
