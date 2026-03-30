@@ -1,24 +1,107 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import TrustBadge from "../components/TrustBadge";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "../utils/categoryColors";
 import useOnlineStatus from "../hooks/useOnlineStatus";
 import { saveDeliverySession } from "../utils/deliverySession";
+
+function formatTrustTier(value) {
+  if (!value) return "New";
+
+  return value
+    .toString()
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function normalizeNeedDetail(need) {
+  if (!need) return null;
+
+  return {
+    id: need.id,
+    ngoId: need.ngoId ?? null,
+    ngoName: need.ngoName || "NGO destination",
+    ngoAddress: need.ngoAddress || "",
+    ngoPhotoUrl: need.ngoPhotoUrl || "",
+    ngoTrustScore:
+      typeof need.ngoTrustScore === "number" ? need.ngoTrustScore : null,
+    ngoTrustTier: need.ngoTrustTier || "",
+    category: need.category || "OTHER",
+    itemName: need.itemName || "Item unavailable",
+    description: need.description || "",
+    quantityRequired: Number(need.quantityRequired || 0),
+    quantityPledged: Number(need.quantityPledged || 0),
+    quantityRemaining:
+      typeof need.quantityRemaining === "number"
+        ? Number(need.quantityRemaining)
+        : Math.max(
+            Number(need.quantityRequired || 0) - Number(need.quantityPledged || 0),
+            0
+          ),
+    urgency: need.urgency || "NORMAL",
+    status: need.status || "",
+  };
+}
 
 export default function PledgeScreen() {
   const { needId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const online = useOnlineStatus();
+  const [need, setNeed] = useState(() => normalizeNeedDetail(location.state));
   const [qty, setQty] = useState(1);
+  const [loading, setLoading] = useState(!location.state);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const need = useMemo(() => location.state || null, [location.state]);
-  const remaining = need
-    ? Math.max(Number(need.quantityRequired || 0) - Number(need.quantityPledged || 0), 0)
-    : 0;
+  useEffect(() => {
+    if (location.state) {
+      setNeed(normalizeNeedDetail(location.state));
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadNeed = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await api.get(`/api/needs/${needId}`);
+        if (!cancelled) {
+          setNeed(normalizeNeedDetail(response.data));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err.response?.data?.error ||
+              err.response?.data?.message ||
+              "Failed to load need details."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadNeed();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.state, needId]);
+
+  const remaining = useMemo(() => {
+    if (!need) return 0;
+    return Math.max(Number(need.quantityRemaining || 0), 0);
+  }, [need]);
 
   const clampQuantity = (value) => {
     if (remaining <= 0) return 0;
@@ -65,6 +148,21 @@ export default function PledgeScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
+          <div className="glass rounded-2xl p-8 w-full max-w-md">
+            <div className="flex items-center justify-center py-8">
+              <div className="h-8 w-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   if (!need) {
     return (
       <>
@@ -73,8 +171,7 @@ export default function PledgeScreen() {
           <div className="glass rounded-2xl p-8 w-full max-w-lg space-y-4">
             <h1 className="text-xl font-bold text-slate-900">Pledge Details Unavailable</h1>
             <p className="text-sm text-slate-600">
-              This screen currently depends on need details being passed from the NGO
-              profile because the backend has not yet confirmed `GET /api/needs/{needId}`.
+              {error || "The selected need could not be loaded."}
             </p>
             <button
               onClick={() => navigate("/")}
@@ -97,6 +194,17 @@ export default function PledgeScreen() {
             Pledge to {need.ngoName}
           </h1>
 
+          {typeof need.ngoTrustScore === "number" && need.ngoTrustTier && (
+            <TrustBadge
+              score={need.ngoTrustScore}
+              label={formatTrustTier(need.ngoTrustTier)}
+            />
+          )}
+
+          {need.description && (
+            <p className="text-sm text-slate-600">{need.description}</p>
+          )}
+
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-500">Item:</span>
@@ -118,14 +226,20 @@ export default function PledgeScreen() {
               <span className="text-slate-500">Urgency:</span>
               <span
                 className={
-                  need.urgency === "URGENT"
+                  ["URGENT", "HIGH"].includes(need.urgency)
                     ? "text-red-500 font-medium"
                     : "text-slate-700"
                 }
               >
-                {need.urgency === "URGENT" ? "Urgent" : "Normal"}
+                {["URGENT", "HIGH"].includes(need.urgency) ? "Urgent" : "Normal"}
               </span>
             </div>
+            {need.status && (
+              <div className="flex justify-between">
+                <span className="text-slate-500">Status:</span>
+                <span className="text-slate-700">{need.status}</span>
+              </div>
+            )}
           </div>
 
           <hr className="border-slate-200" />
