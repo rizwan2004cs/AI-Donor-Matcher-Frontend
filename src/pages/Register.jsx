@@ -31,6 +31,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Creating Account...");
   const [error, setError] = useState(null);
+  const [existingAccountEmail, setExistingAccountEmail] = useState("");
   const [step, setStep] = useState(1); // 1: Info, 2: OTP
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const online = useOnlineStatus();
@@ -113,6 +114,7 @@ export default function Register() {
     setLoading(true);
     setLoadingMessage("Sending verification code...");
     setError(null);
+    setExistingAccountEmail("");
 
     try {
       // Step 1: Request OTP from backend
@@ -120,7 +122,16 @@ export default function Register() {
       setStep(2); // Move to OTP verification step
     } catch (err) {
       console.error("SEND OTP ERROR:", err);
-      setError(err.response?.data?.message || err.message || "Failed to send OTP");
+      const status = err.response?.status;
+      const message =
+        err.response?.data?.error || err.response?.data?.message || err.message || "";
+
+      if (status === 400 || /already registered|already exists/i.test(message)) {
+        setExistingAccountEmail(form.email);
+        setError("An account with this email already exists.");
+      } else {
+        setError(message || "Failed to send OTP");
+      }
     } finally {
       setLoading(false);
     }
@@ -140,6 +151,7 @@ export default function Register() {
         : "Creating your account..."
     );
     setError(null);
+    setExistingAccountEmail("");
 
     try {
       // Step 2: Submit all data + OTP to finally register
@@ -197,12 +209,22 @@ export default function Register() {
       navigate("/", { replace: true });
     } catch (err) {
       console.error("REGISTRATION ERROR:", err);
-      setError(
+      const status = err.response?.status;
+      const message =
         err.response?.data?.error ||
-          err.response?.data?.message ||
-          err.message ||
-          "Registration failed"
-      );
+        err.response?.data?.message ||
+        err.message ||
+        "Registration failed";
+
+      if (status === 400 && step === 1) {
+        setExistingAccountEmail(form.email);
+        setError("An account with this email already exists.");
+      } else if (/already registered|already exists/i.test(message)) {
+        setExistingAccountEmail(form.email);
+        setError("An account with this email already exists.");
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -323,7 +345,22 @@ export default function Register() {
           )}
 
           {error && (
-            <p className="text-red-500 text-sm">{error}</p>
+            <div className="space-y-3">
+              <p className="text-red-500 text-sm">{error}</p>
+              {existingAccountEmail && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/login", {
+                      state: { prefillEmail: existingAccountEmail },
+                    })
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-700 transition-all duration-200 hover:bg-teal-100"
+                >
+                  Go to login with this email
+                </button>
+              )}
+            </div>
           )}
 
           <button
