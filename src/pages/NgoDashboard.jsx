@@ -2,18 +2,20 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
-  CheckCircle2,
+  CircleCheckBig,
   ImagePlus,
   Lock,
   Package,
+  Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import NeedEditorModal from "../components/NeedEditorModal";
 import NeedProgressBar from "../components/NeedProgressBar";
 import TrustBadge from "../components/TrustBadge";
-import { CATEGORY_LABELS, CATEGORY_OPTIONS } from "../utils/categoryColors";
+import { CATEGORY_LABELS } from "../utils/categoryColors";
 import {
   getNgoProfileCompletion,
   normalizeNgoProfile,
@@ -21,23 +23,14 @@ import {
 import useOnlineStatus from "../hooks/useOnlineStatus";
 
 const MAX_ACTIVE_NEEDS = 5;
-const INITIAL_FORM = {
-  itemName: "",
-  category: "FOOD",
-  quantityRequired: 1,
-  urgency: "NORMAL",
-  description: "",
-  expiryDate: "",
-};
 
 export default function NgoDashboard() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(() => normalizeNgoProfile());
   const [needs, setNeeds] = useState([]);
-  const [incomingPledgesAvailable, setIncomingPledgesAvailable] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [formData, setFormData] = useState(INITIAL_FORM);
+  const [showNeedModal, setShowNeedModal] = useState(false);
+  const [editingNeed, setEditingNeed] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const online = useOnlineStatus();
@@ -67,35 +60,52 @@ export default function NgoDashboard() {
     } finally {
       setLoading(false);
     }
-
-    try {
-      await api.get("/api/ngo/my/pledges");
-      setIncomingPledgesAvailable(true);
-    } catch {
-      setIncomingPledgesAvailable(false);
-    }
   };
 
   useEffect(() => {
     loadDashboard();
   }, []);
 
-  const handleAddNeed = async (event) => {
-    event.preventDefault();
+  const openAddModal = () => {
+    setEditingNeed(null);
+    setShowNeedModal(true);
+  };
+
+  const openEditModal = (need) => {
+    setEditingNeed(need);
+    setShowNeedModal(true);
+  };
+
+  const closeNeedModal = () => {
+    setShowNeedModal(false);
+    setEditingNeed(null);
+  };
+
+  const handleSaveNeed = async (payload) => {
     if (!online) {
-      setError("You are offline. Reconnect before creating a need.");
+      setError(
+        `You are offline. Reconnect before ${editingNeed ? "updating" : "creating"} a need.`
+      );
       return;
     }
+
     setSubmitting(true);
     setError(null);
 
     try {
-      await api.post("/api/needs", formData);
-      setShowAddModal(false);
-      setFormData(INITIAL_FORM);
+      if (editingNeed) {
+        await api.put(`/api/needs/${editingNeed.id}`, payload);
+      } else {
+        await api.post("/api/needs", payload);
+      }
+
+      closeNeedModal();
       await loadDashboard();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to add need.");
+      setError(
+        err.response?.data?.error ||
+          `Failed to ${editingNeed ? "update" : "add"} need.`
+      );
     } finally {
       setSubmitting(false);
     }
@@ -110,13 +120,32 @@ export default function NgoDashboard() {
 
     try {
       await api.delete(`/api/needs/${needId}`);
-      setNeeds((current) => current.filter((need) => need.id !== needId));
+      await loadDashboard();
     } catch (err) {
       setError(err.response?.data?.error || "Failed to delete need.");
     }
   };
 
-  const activeNeeds = needs.filter((need) => need.status !== "FULFILLED");
+  const handleFulfillNeed = async (needId) => {
+    if (!online) {
+      setError("You are offline. Reconnect before marking a need as fulfilled.");
+      return;
+    }
+    if (!window.confirm("Mark this need as fulfilled? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      await api.patch(`/api/needs/${needId}/fulfill`);
+      await loadDashboard();
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to mark need as fulfilled.");
+    }
+  };
+
+  const activeNeeds = needs.filter(
+    (need) => !["FULFILLED", "EXPIRED"].includes(need.status)
+  );
   const completion = getNgoProfileCompletion(profile);
   const canAddNeed = activeNeeds.length < MAX_ACTIVE_NEEDS;
   const hasTrustMetrics =
@@ -147,8 +176,8 @@ export default function NgoDashboard() {
               NGO Dashboard
             </h1>
             <p className="text-slate-600 mt-1">
-              Review your profile status and manage the active needs already
-              supported by the current backend agreement.
+              Manage the agreed need workflow while keeping unsupported incoming
+              pledges behind an explicit backend dependency.
             </p>
           </header>
 
@@ -218,12 +247,13 @@ export default function NgoDashboard() {
                     Active Needs
                   </h2>
                   <p className="text-sm text-slate-600 mt-1">
-                    Uses the agreed NGO need endpoints: read, create, and delete.
+                    Uses the agreed NGO need endpoints for read, create, update,
+                    delete, and fulfill.
                   </p>
                 </div>
 
                 <button
-                  onClick={() => canAddNeed && setShowAddModal(true)}
+                  onClick={() => canAddNeed && openAddModal()}
                   disabled={!canAddNeed || !online}
                   className="bg-teal-600 text-white hover:bg-teal-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50 inline-flex items-center gap-2"
                 >
@@ -293,13 +323,36 @@ export default function NgoDashboard() {
 
                         {!isLocked && (
                           <div className="mt-4 flex justify-end">
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                              <button
+                                onClick={() => openEditModal(need)}
+                                disabled={!online}
+                                className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Pencil className="h-4 w-4" />
+                                {online ? "Edit" : "Offline"}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteNeed(need.id)}
+                                disabled={!online}
+                                className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                {online ? "Delete" : "Offline"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {isLocked && (
+                          <div className="mt-4 flex justify-end">
                             <button
-                              onClick={() => handleDeleteNeed(need.id)}
+                              onClick={() => handleFulfillNeed(need.id)}
                               disabled={!online}
-                              className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center gap-2 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <Trash2 className="h-4 w-4" />
-                              {online ? "Delete" : "Offline"}
+                              <CircleCheckBig className="h-4 w-4" />
+                              {online ? "Mark as Fulfilled" : "Offline"}
                             </button>
                           </div>
                         )}
@@ -310,171 +363,27 @@ export default function NgoDashboard() {
               )}
             </section>
 
-            {!incomingPledgesAvailable && (
-              <section className="glass rounded-2xl p-6">
-                <h2 className="text-2xl font-semibold text-slate-900">
-                  Incoming Pledges
-                </h2>
-                <p className="text-sm text-slate-600 mt-2">
-                  The incoming pledges section is waiting on a backend-confirmed
-                  read endpoint and is tracked separately in issue #16.
-                </p>
-              </section>
-            )}
+            <section className="glass rounded-2xl p-6">
+              <h2 className="text-2xl font-semibold text-slate-900">
+                Incoming Pledges
+              </h2>
+              <p className="text-sm text-slate-600 mt-2">
+                This section is intentionally blocked until the backend confirms
+                `GET /api/ngo/my/pledges` and its response shape. The dependency
+                is tracked in issue #16.
+              </p>
+            </section>
           </div>
         </main>
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-lg w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-slate-900">
-              Add New Need
-            </h3>
-            <p className="text-sm text-slate-600 mt-1">
-              This form uses the agreed `POST /api/needs` payload.
-            </p>
-
-            <form onSubmit={handleAddNeed} className="mt-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Item Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.itemName}
-                  onChange={(event) =>
-                    setFormData((current) => ({
-                      ...current,
-                      itemName: event.target.value,
-                    }))
-                  }
-                  className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
-                  required
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Category
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        category: event.target.value,
-                      }))
-                    }
-                    className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
-                  >
-                    {CATEGORY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Quantity Required
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={formData.quantityRequired}
-                    onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        quantityRequired: Number(event.target.value),
-                      }))
-                    }
-                    className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  rows={3}
-                  value={formData.description}
-                  onChange={(event) =>
-                    setFormData((current) => ({
-                      ...current,
-                      description: event.target.value,
-                    }))
-                  }
-                  className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Urgency
-                  </label>
-                  <select
-                    value={formData.urgency}
-                    onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        urgency: event.target.value,
-                      }))
-                    }
-                    className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
-                  >
-                    <option value="NORMAL">Normal</option>
-                    <option value="HIGH">High</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Expiry Date
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.expiryDate}
-                    onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        expiryDate: event.target.value,
-                      }))
-                    }
-                    className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setFormData(INITIAL_FORM);
-                  }}
-                  className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={submitting || !online}
-                  className="bg-teal-600 text-white hover:bg-teal-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50"
-                >
-                  {submitting ? "Saving..." : online ? "Add Need" : "Offline"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {showNeedModal && (
+        <NeedEditorModal
+          initialData={editingNeed}
+          onClose={closeNeedModal}
+          onSave={handleSaveNeed}
+          saving={submitting}
+        />
       )}
     </>
   );
