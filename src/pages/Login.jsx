@@ -5,6 +5,18 @@ import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import LoadingOverlay from "../components/LoadingOverlay";
 
+function normalizeAuthUser(data) {
+  return (
+    data.user ?? {
+      id: data.userId ?? null,
+      fullName: data.fullName ?? "",
+      email: data.email ?? "",
+      role: data.role ?? "",
+      emailVerified: Boolean(data.emailVerified),
+    }
+  );
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const { user, login } = useAuth();
@@ -17,9 +29,8 @@ export default function Login() {
     if (!user) return;
 
     if (user.role === "ADMIN") navigate("/admin/dashboard", { replace: true });
-    else if (user.role === "NGO") {
-      navigate(user.profileComplete ? "/ngo/dashboard" : "/ngo/complete-profile", { replace: true });
-    } else navigate("/map", { replace: true });
+    else if (user.role === "NGO") navigate("/ngo/dashboard", { replace: true });
+    else navigate("/map", { replace: true });
   }, [user, navigate]);
 
   const onChange = (e) =>
@@ -32,14 +43,14 @@ export default function Login() {
 
     try {
       const res = await api.post("/api/auth/login", form);
-      const { token, user } = res.data;
+      const token = res.data.token;
+      const user = normalizeAuthUser(res.data);
       login(user, token);
 
       // Redirect based on role
       if (user.role === "ADMIN") navigate("/admin/dashboard");
-      else if (user.role === "NGO") {
-        navigate(user.profileComplete ? "/ngo/dashboard" : "/ngo/complete-profile");
-      } else navigate("/map");
+      else if (user.role === "NGO") navigate("/ngo/dashboard");
+      else navigate("/map");
     } catch (err) {
       console.error("LOGIN ERROR:", err);
       setError(err.response?.data?.message || err.message || "Login failed");

@@ -46,7 +46,7 @@ export default function Navbar() {
 
             {user?.role === "NGO" && (
               <Link
-                to={user.profileComplete ? "/ngo/dashboard" : "/ngo/complete-profile"}
+                to="/ngo/dashboard"
                 className="hover:text-teal-200 transition-all duration-200"
               >
                 Dashboard

@@ -1,342 +1,375 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../api/axios";
-import { useAuth } from "../auth/AuthContext";
-import Navbar from "../components/Navbar";
 import {
-  CheckCircle,
+  Building2,
+  CheckCircle2,
   Circle,
-  Upload,
-  MapPin,
-  FileText,
-  User,
+  ImagePlus,
+  Mail,
+  Phone,
+  Save,
+  Shapes,
+  Type,
 } from "lucide-react";
+import api from "../api/axios";
+import Navbar from "../components/Navbar";
+import { CATEGORY_OPTIONS } from "../utils/categoryColors";
+import {
+  NGO_PROFILE_FIELDS,
+  getNgoProfileCompletion,
+  normalizeNgoProfile,
+} from "../utils/ngoProfile";
 
-const REQUIRED_FIELDS = [
-  { key: "organizationName", label: "Organization Name", icon: User },
-  { key: "description", label: "Description", icon: FileText },
-  { key: "address", label: "Address", icon: MapPin },
-  { key: "latitude", label: "Location (Lat/Lng)", icon: MapPin },
-  { key: "profilePhoto", label: "Profile Photo", icon: Upload },
-  { key: "verificationDoc", label: "Verification Document", icon: FileText },
-];
+const FIELD_ICONS = {
+  name: Building2,
+  address: Type,
+  contactEmail: Mail,
+  contactPhone: Phone,
+  description: Type,
+  categoryOfWork: Shapes,
+};
+
+const EMPTY_FORM = {
+  name: "",
+  address: "",
+  contactEmail: "",
+  contactPhone: "",
+  description: "",
+  categoryOfWork: "",
+};
 
 export default function NgoProfileCompletion() {
   const navigate = useNavigate();
-  const { user, login } = useAuth();
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState(() => normalizeNgoProfile());
+  const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [form, setForm] = useState({
-    organizationName: "",
-    description: "",
-    address: "",
-    latitude: "",
-    longitude: "",
-  });
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
 
-  useEffect(() => {
-    api
-      .get("/api/ngo/my/profile")
-      .then((res) => {
-        setProfile(res.data);
-        setForm({
-          organizationName: res.data.organizationName || "",
-          description: res.data.description || "",
-          address: res.data.address || "",
-          latitude: res.data.latitude || "",
-          longitude: res.data.longitude || "",
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to load NGO profile", err);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const completion = getNgoProfileCompletion(form);
 
-  const completed = REQUIRED_FIELDS.filter((f) => {
-    if (f.key === "latitude") return profile?.latitude && profile?.longitude;
-    if (f.key === "profilePhoto") return profile?.profilePhotoUrl;
-    if (f.key === "verificationDoc") return profile?.verificationDocUrl;
-    return profile?.[f.key];
-  });
+  const loadProfile = async () => {
+    setLoading(true);
+    setError(null);
 
-  const progress = Math.round((completed.length / REQUIRED_FIELDS.length) * 100);
-
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
-
-  const saveProfile = async (e) => {
-    e.preventDefault();
     try {
-      const res = await api.put("/api/ngo/my/profile", form);
-      setProfile(res.data);
-      const token = localStorage.getItem("token");
-      const updates = { ...user };
-      if (res.data.organizationName) updates.name = res.data.organizationName;
-      if (res.data.profileComplete === true) updates.profileComplete = true;
-      login(updates, token);
-      if (res.data.profileComplete) navigate("/ngo/dashboard");
+      const res = await api.get("/api/ngo/my/profile");
+      const normalized = normalizeNgoProfile(res.data);
+      setProfile(normalized);
+      setForm({
+        name: normalized.name,
+        address: normalized.address,
+        contactEmail: normalized.contactEmail,
+        contactPhone: normalized.contactPhone,
+        description: normalized.description,
+        categoryOfWork: normalized.categoryOfWork,
+      });
     } catch (err) {
-      console.error("Failed to save NGO profile", err);
-      alert(err.response?.data?.message || "Failed to save profile");
+      setError(err.response?.data?.error || "Failed to load NGO profile.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const uploadFile = async (e, type) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
+  useEffect(() => {
+    loadProfile();
+  }, []);
 
-    const fd = new FormData();
-    // Backend expects the file under the `file` field name
-    fd.append("file", file);
+  const handleChange = ({ target: { name, value } }) => {
+    setForm((current) => ({ ...current, [name]: value }));
+  };
 
-    const endpoint =
-      type === "profile-photo"
-        ? "/api/ngo/my/photo"
-        : "/api/ngo/my/verification-doc";
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    setMessage(null);
 
     try {
-      const res = await api.post(endpoint, fd, {
+      await api.put("/api/ngo/my/profile", form);
+      await loadProfile();
+      setMessage("Profile details saved.");
+
+      if (getNgoProfileCompletion(form).isComplete) {
+        navigate("/ngo/dashboard");
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to save profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePhotoUpload = async ({ target }) => {
+    const file = target.files?.[0];
+
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await api.post("/api/ngo/my/photo", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      // Backend returns { url: "..." }
-      const url = res.data?.url;
-      if (!url) {
-        console.warn("Upload succeeded but no url in response", res.data);
-      } else {
-        setProfile((prev) => ({
-          ...prev,
-          ...(type === "profile-photo"
-            ? { profilePhotoUrl: url }
-            : { verificationDocUrl: url }),
-        }));
-      }
+      setProfile((current) => ({ ...current, photoUrl: res.data?.url ?? "" }));
+      setMessage("Profile photo updated.");
     } catch (err) {
-      console.error("NGO upload failed", err);
-      alert(err.response?.data?.message || "Upload failed");
+      setError(err.response?.data?.error || "Failed to upload profile photo.");
     } finally {
       setUploading(false);
+      target.value = "";
     }
   };
 
-  const detectLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation not supported");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm({
-          ...form,
-          latitude: pos.coords.latitude.toFixed(6),
-          longitude: pos.coords.longitude.toFixed(6),
-        });
-      },
-      () => alert("Unable to detect location")
-    );
-  };
-
-  if (loading)
+  if (loading) {
     return (
       <>
         <Navbar />
-        <div className="p-8 text-center text-slate-400">Loading...</div>
+        <div className="min-h-screen bg-teal-50">
+          <main className="max-w-4xl mx-auto px-6 py-12">
+            <div className="flex items-center justify-center py-12">
+              <div className="h-8 w-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          </main>
+        </div>
       </>
     );
+  }
 
   return (
     <>
       <Navbar />
       <div className="min-h-screen bg-teal-50">
-        <div className="glass-nav text-white px-6 py-6">
-          <h1 className="text-xl font-bold">Complete Your Profile</h1>
-          <p className="text-teal-200 text-sm mt-1">
-            Fill in all fields to get verified and appear on the map
-          </p>
-        </div>
+        <main className="max-w-4xl mx-auto px-6 py-8">
+          <header>
+            <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
+              Complete NGO Profile
+            </h1>
+            <p className="text-slate-600 mt-1">
+              Finish your organization details using the current frontend-backend
+              agreement fields before continuing to the dashboard.
+            </p>
+          </header>
 
-        <div className="max-w-2xl mx-auto p-4 space-y-6">
-          {/* Progress bar */}
-          <div>
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-slate-600">Profile completion</span>
-              <span className="font-medium text-teal-600">{progress}%</span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-3">
-              <div
-                className="h-3 rounded-full bg-teal-500 transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Checklist */}
-          <div className="glass rounded-2xl p-4 space-y-2">
-            {REQUIRED_FIELDS.map((f) => {
-              const done = completed.some((c) => c.key === f.key);
-              const Icon = f.icon;
-              return (
-                <div
-                  key={f.key}
-                  className="flex items-center gap-3 text-sm py-1"
-                >
-                  {done ? (
-                    <CheckCircle className="w-5 h-5 text-emerald-500" />
-                  ) : (
-                    <Circle className="w-5 h-5 text-slate-300" />
-                  )}
-                  <Icon className="w-4 h-4 text-slate-400" />
-                  <span className={done ? "text-slate-500" : "text-slate-800 font-medium"}>
-                    {f.label}
-                  </span>
+          <div className="mt-8 space-y-6">
+            <section className="glass rounded-2xl p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-semibold text-slate-900">
+                    Profile Progress
+                  </h2>
+                  <p className="text-sm text-slate-600 mt-1">
+                    {completion.filledCount} of {completion.totalCount} required
+                    fields filled
+                  </p>
                 </div>
-              );
-            })}
-          </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-teal-700">
+                    {completion.percent}%
+                  </p>
+                  <p className="text-xs text-slate-500">Completion</p>
+                </div>
+              </div>
 
-          {/* Profile form */}
-          <form onSubmit={saveProfile} className="glass rounded-2xl p-6 space-y-4">
-            <h3 className="font-bold text-slate-900">Organization Details</h3>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Organization Name
-              </label>
-              <input
-                name="organizationName"
-                value={form.organizationName}
-                onChange={handleChange}
-                className="w-full border border-white/30 rounded-xl px-3 py-2 text-sm bg-white/70 backdrop-blur-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none transition-all duration-200"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Description
-              </label>
-              <textarea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                rows={3}
-                className="w-full border border-white/30 rounded-xl px-3 py-2 text-sm bg-white/70 backdrop-blur-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none transition-all duration-200"
-                placeholder="What does your organization do?"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Address
-              </label>
-              <input
-                name="address"
-                value={form.address}
-                onChange={handleChange}
-                className="w-full border border-white/30 rounded-xl px-3 py-2 text-sm bg-white/70 backdrop-blur-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none transition-all duration-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Location
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  name="latitude"
-                  value={form.latitude}
-                  onChange={handleChange}
-                  placeholder="Latitude"
-                  className="border border-white/30 rounded-xl px-3 py-2 text-sm bg-white/70 backdrop-blur-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none transition-all duration-200"
-                />
-                <input
-                  name="longitude"
-                  value={form.longitude}
-                  onChange={handleChange}
-                  placeholder="Longitude"
-                  className="border border-white/30 rounded-xl px-3 py-2 text-sm bg-white/70 backdrop-blur-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none transition-all duration-200"
+              <div className="mt-4 w-full bg-slate-200 rounded-full h-3">
+                <div
+                  className="bg-teal-600 h-3 rounded-full transition-all duration-200"
+                  style={{ width: `${completion.percent}%` }}
                 />
               </div>
-              <button
-                type="button"
-                onClick={detectLocation}
-                className="mt-2 text-xs text-teal-600 underline"
-              >
-                📍 Detect my location
-              </button>
-            </div>
 
-            <button
-              type="submit"
-              className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200"
-            >
-              Save Details
-            </button>
-          </form>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {NGO_PROFILE_FIELDS.map(({ key, label }) => {
+                  const complete = Boolean(form[key]?.trim());
+                  const Icon = FIELD_ICONS[key] || Type;
 
-          {/* File uploads */}
-          <div className="glass rounded-2xl p-6 space-y-4">
-            <h3 className="font-bold text-slate-900">Upload Documents</h3>
+                  return (
+                    <div
+                      key={key}
+                      className="glass-subtle rounded-2xl px-4 py-3 flex items-center gap-3"
+                    >
+                      {complete ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                      ) : (
+                        <Circle className="h-5 w-5 text-slate-300" />
+                      )}
+                      <Icon className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm text-slate-700">{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Profile Photo
-              </label>
-              {profile?.profilePhotoUrl && (
-                <img
-                  src={profile.profilePhotoUrl}
-                  alt="Profile"
-                  className="w-20 h-20 rounded-full object-cover mb-2"
+            <section className="glass rounded-2xl p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-semibold text-slate-900">
+                    Profile Photo
+                  </h2>
+                  <p className="text-sm text-slate-600 mt-1">
+                    Upload a profile image using the agreed `file` multipart field.
+                  </p>
+                </div>
+
+                <div className="h-20 w-20 rounded-2xl bg-white/70 border border-slate-200 overflow-hidden flex items-center justify-center">
+                  {profile.photoUrl ? (
+                    <img
+                      src={profile.photoUrl}
+                      alt="NGO profile"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <ImagePlus className="h-8 w-8 text-slate-300" />
+                  )}
+                </div>
+              </div>
+
+              <label className="mt-4 inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 cursor-pointer">
+                <ImagePlus className="h-4 w-4" />
+                <span>{uploading ? "Uploading..." : "Upload Photo"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  disabled={uploading}
+                  className="hidden"
                 />
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => uploadFile(e, "profile-photo")}
-                disabled={uploading}
-                className="text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Verification Document (PDF/Image)
               </label>
-              {profile?.verificationDocUrl && (
-                <p className="text-xs text-green-600 mb-1">✅ Document uploaded</p>
-              )}
-              <input
-                type="file"
-                accept=".pdf,image/*"
-                onChange={(e) => uploadFile(e, "verification-doc")}
-                disabled={uploading}
-                className="text-sm"
-              />
-            </div>
+            </section>
 
-            {uploading && (
-              <p className="text-xs text-slate-400">Uploading...</p>
-            )}
-          </div>
-
-          {progress === 100 && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
-              <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-              <p className="text-sm font-medium text-emerald-700">
-                Profile complete! Your verification is under review.
+            <section className="glass rounded-2xl p-6">
+              <h2 className="text-2xl font-semibold text-slate-900">
+                Organization Details
+              </h2>
+              <p className="text-sm text-slate-600 mt-1">
+                These fields are saved with the agreement field names, including
+                `categoryOfWork`.
               </p>
-              <button
-                onClick={() => navigate("/ngo/dashboard")}
-                className="mt-3 text-sm bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all duration-200"
-              >
-                Go to Dashboard →
-              </button>
-            </div>
-          )}
-        </div>
+
+              <form onSubmit={handleSave} className="mt-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Organization Name
+                  </label>
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Address
+                  </label>
+                  <input
+                    name="address"
+                    value={form.address}
+                    onChange={handleChange}
+                    className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
+                    required
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Contact Email
+                    </label>
+                    <input
+                      type="email"
+                      name="contactEmail"
+                      value={form.contactEmail}
+                      onChange={handleChange}
+                      className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Contact Phone
+                    </label>
+                    <input
+                      name="contactPhone"
+                      value={form.contactPhone}
+                      onChange={handleChange}
+                      className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    value={form.description}
+                    onChange={handleChange}
+                    rows={4}
+                    className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Category of Work
+                  </label>
+                  <select
+                    name="categoryOfWork"
+                    value={form.categoryOfWork}
+                    onChange={handleChange}
+                    className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {CATEGORY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                {message && <p className="text-sm text-emerald-600">{message}</p>}
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="bg-teal-600 text-white hover:bg-teal-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>{saving ? "Saving..." : "Save Profile"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/ngo/dashboard")}
+                    className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200"
+                  >
+                    Back to Dashboard
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </main>
       </div>
     </>
   );
