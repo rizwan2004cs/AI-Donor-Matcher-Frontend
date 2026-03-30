@@ -40,8 +40,6 @@ const STAT_CARDS = [
 ];
 
 const INITIAL_LIST_LIMIT = 10;
-const BACKGROUND_HYDRATE_DELAY_MS = 2500;
-
 function titleCase(value) {
   if (!value) return "";
 
@@ -144,12 +142,17 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hydratingFullLists, setHydratingFullLists] = useState(false);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [ngosLoading, setNgosLoading] = useState(false);
+  const [reportsLoaded, setReportsLoaded] = useState(false);
+  const [ngosLoaded, setNgosLoaded] = useState(false);
   const [initialListLimit] = useState(INITIAL_LIST_LIMIT);
   const [approvingNgoId, setApprovingNgoId] = useState(null);
   const [expandedReportNgoId, setExpandedReportNgoId] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
+  const [actionNotice, setActionNotice] = useState(null);
   const [suspendTarget, setSuspendTarget] = useState(null);
   const [suspending, setSuspending] = useState(false);
   const [suspendResult, setSuspendResult] = useState(null);
@@ -168,63 +171,117 @@ export default function AdminDashboard() {
     [ngos, expandedNgoId]
   );
 
+  const fetchReports = async (limit, hydrateFull = false) => {
+    setReportsLoading(true);
+
+    try {
+      const reportsRes = await api.get("/api/admin/reports", {
+        params: limit ? { limit } : undefined,
+      });
+      setReports(Array.isArray(reportsRes.data) ? reportsRes.data : []);
+      setReportsLoaded(true);
+
+      if (limit && hydrateFull) {
+        setHydratingFullLists(true);
+        window.setTimeout(async () => {
+          try {
+            await fetchReports();
+          } finally {
+            setHydratingFullLists(false);
+          }
+        }, BACKGROUND_HYDRATE_DELAY_MS);
+      }
+    } catch (err) {
+      console.error("Failed to load admin reports", err);
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const fetchNgos = async (limit, hydrateFull = false) => {
+    setNgosLoading(true);
+
+    try {
+      const ngosRes = await api.get("/api/admin/ngos", {
+        params: limit ? { limit } : undefined,
+      });
+      setNgos((Array.isArray(ngosRes.data) ? ngosRes.data : []).map(normalizeNgo));
+      setNgosLoaded(true);
+
+      if (limit && hydrateFull) {
+        setHydratingFullLists(true);
+        window.setTimeout(async () => {
+          try {
+            await fetchNgos();
+          } finally {
+            setHydratingFullLists(false);
+          }
+        }, BACKGROUND_HYDRATE_DELAY_MS);
+      }
+    } catch (err) {
+      console.error("Failed to load NGO management list", err);
+    } finally {
+      setNgosLoading(false);
+    }
+  };
+
   useEffect(() => {
     let isCancelled = false;
-    let hydrateTimer;
 
     const fetchInitial = async () => {
       setLoading(true);
       setError(null);
 
+      const statsPromise = api
+        .get("/api/admin/stats")
+        .then((statsRes) => {
+          if (!isCancelled) {
+            setStats(statsRes.data || {});
+          }
+        })
+        .catch((err) => {
+          if (!isCancelled) {
+            console.error("Failed to load admin stats", err);
+          }
+        });
+
       try {
-        const [statsRes, pendingRes, reportsRes, ngosRes] = await Promise.all([
-          api.get("/api/admin/stats"),
-          api.get("/api/admin/ngos/pending", {
-            params: { limit: INITIAL_LIST_LIMIT },
-          }),
-          api.get("/api/admin/reports", {
-            params: { limit: INITIAL_LIST_LIMIT },
-          }),
-          api.get("/api/admin/ngos", {
-            params: { limit: INITIAL_LIST_LIMIT },
-          }),
-        ]);
+        const pendingRes = await api.get("/api/admin/ngos/pending", {
+          params: { limit: INITIAL_LIST_LIMIT },
+        });
 
         if (isCancelled) return;
 
-        setStats(statsRes.data || {});
         setPendingVerifications(
           (Array.isArray(pendingRes.data) ? pendingRes.data : []).map(normalizeNgo)
         );
-        setReports(Array.isArray(reportsRes.data) ? reportsRes.data : []);
-        setNgos((Array.isArray(ngosRes.data) ? ngosRes.data : []).map(normalizeNgo));
 
         setHydratingFullLists(true);
-        hydrateTimer = window.setTimeout(async () => {
-          try {
-            const [pendingFullRes, reportsFullRes, ngosFullRes] = await Promise.all([
-              api.get("/api/admin/ngos/pending"),
-              api.get("/api/admin/reports"),
-              api.get("/api/admin/ngos"),
-            ]);
+        Promise.allSettled([api.get("/api/admin/ngos/pending")]).then((results) => {
+          const [pendingFullResult] = results;
 
+          try {
             if (isCancelled) return;
 
-            setPendingVerifications(
-              (Array.isArray(pendingFullRes.data) ? pendingFullRes.data : []).map(normalizeNgo)
-            );
-            setReports(Array.isArray(reportsFullRes.data) ? reportsFullRes.data : []);
-            setNgos((Array.isArray(ngosFullRes.data) ? ngosFullRes.data : []).map(normalizeNgo));
-          } catch (err) {
-            if (!isCancelled) {
-              console.error("Failed to hydrate full admin lists", err);
+            if (pendingFullResult.status === "fulfilled") {
+              setPendingVerifications(
+                (Array.isArray(pendingFullResult.value.data)
+                  ? pendingFullResult.value.data
+                  : []
+                ).map(normalizeNgo)
+              );
+            } else {
+              console.error(
+                "Failed to hydrate full verification queue",
+                pendingFullResult.reason
+              );
             }
           } finally {
             if (!isCancelled) {
               setHydratingFullLists(false);
             }
           }
-        }, BACKGROUND_HYDRATE_DELAY_MS);
+        });
       } catch (err) {
         console.error("Failed to load admin data", err);
         if (!isCancelled) {
@@ -232,6 +289,7 @@ export default function AdminDashboard() {
           setHydratingFullLists(false);
         }
       } finally {
+        await statsPromise;
         if (!isCancelled) {
           setLoading(false);
         }
@@ -242,11 +300,22 @@ export default function AdminDashboard() {
 
     return () => {
       isCancelled = true;
-      if (hydrateTimer) {
-        window.clearTimeout(hydrateTimer);
-      }
     };
   }, []);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (tab === "reports" && !reportsLoaded && !reportsLoading) {
+      void fetchReports(INITIAL_LIST_LIMIT, true);
+    }
+
+    if (tab === "ngos" && !ngosLoaded && !ngosLoading) {
+      void fetchNgos(INITIAL_LIST_LIMIT, true);
+    }
+  }, [loading, ngosLoaded, ngosLoading, reportsLoaded, reportsLoading, tab]);
 
   useEffect(() => {
     if (!expandedNgoId || loadingNeedsNgoId === expandedNgoId || !expandedNeedsRef.current) {
@@ -317,26 +386,43 @@ export default function AdminDashboard() {
     }
     if (!rejectTarget || !rejectReason.trim()) return;
 
+    const targetSnapshot = rejectTarget;
+    const previousPending = pendingVerifications;
+    const previousStats = stats;
     setRejecting(true);
+    setPendingVerifications((current) =>
+      current.filter((ngo) => ngo.id !== targetSnapshot.id)
+    );
+    setStats((current) =>
+      current
+        ? {
+            ...current,
+            pendingNgos: Math.max(Number(current.pendingNgos || 0) - 1, 0),
+          }
+        : current
+    );
+    closeRejectModal();
+    setActionNotice({
+      tone: "pending",
+      message: `Rejecting ${targetSnapshot.name || "NGO"}...`,
+    });
 
     try {
-      await api.post(`/api/admin/ngos/${rejectTarget.id}/reject`, {
+      await api.post(`/api/admin/ngos/${targetSnapshot.id}/reject`, {
         reason: rejectReason.trim(),
       });
-      setPendingVerifications((current) =>
-        current.filter((ngo) => ngo.id !== rejectTarget.id)
-      );
-      setStats((current) =>
-        current
-          ? {
-              ...current,
-              pendingNgos: Math.max(Number(current.pendingNgos || 0) - 1, 0),
-            }
-          : current
-      );
-      closeRejectModal();
+      setActionNotice({
+        tone: "success",
+        message: `${targetSnapshot.name || "NGO"} rejected successfully.`,
+      });
     } catch (err) {
-      alert(getApiErrorMessage(err, "Failed to reject NGO."));
+      setPendingVerifications(previousPending);
+      setStats(previousStats);
+      setActionNotice({
+        tone: "error",
+        message: getApiErrorMessage(err, "Failed to reject NGO."),
+      });
+    } finally {
       setRejecting(false);
     }
   };
@@ -524,7 +610,7 @@ export default function AdminDashboard() {
             <div className="glass flex items-center gap-3 rounded-2xl border border-white/60 px-4 py-3 text-sm text-slate-600 shadow-sm">
               <div className="h-2.5 w-2.5 rounded-full bg-teal-500" />
               {hydratingFullLists
-                ? `Showing the first ${initialListLimit} records now. The full admin lists are loading in the background.`
+                ? `Showing the first ${initialListLimit} verification records now. Reports and NGO management are still loading in the background.`
                 : "Admin lists are fully loaded."}
             </div>
           </div>
@@ -557,6 +643,20 @@ export default function AdminDashboard() {
 
           {!loading && error && (
             <div className="glass rounded-2xl p-4 text-sm text-red-500">{error}</div>
+          )}
+
+          {!loading && actionNotice && (
+            <div
+              className={`glass rounded-2xl p-4 text-sm ${
+                actionNotice.tone === "error"
+                  ? "text-red-600"
+                  : actionNotice.tone === "success"
+                    ? "text-emerald-700"
+                    : "text-teal-700"
+              }`}
+            >
+              {actionNotice.message}
+            </div>
           )}
 
           {!loading && tab === "verify" && (
@@ -644,7 +744,14 @@ export default function AdminDashboard() {
                 </p>
               </div>
 
-              {groupedReports.length === 0 ? (
+              {reportsLoading && groupedReports.length === 0 ? (
+                <div className="glass rounded-2xl py-12 text-center">
+                  <div className="mx-auto h-8 w-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
+                  <p className="mt-3 text-sm text-slate-500">
+                    Loading reported NGOs...
+                  </p>
+                </div>
+              ) : groupedReports.length === 0 ? (
                 <div className="text-center py-12">
                   <Flag className="mx-auto h-12 w-12 text-slate-300" />
                   <p className="mt-3 text-slate-500">No reported NGOs.</p>
@@ -750,7 +857,14 @@ export default function AdminDashboard() {
                 </p>
               </div>
 
-              {ngos.length === 0 ? (
+              {ngosLoading && ngos.length === 0 ? (
+                <div className="glass rounded-2xl py-12 text-center">
+                  <div className="mx-auto h-8 w-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
+                  <p className="mt-3 text-sm text-slate-500">
+                    Loading NGO management list...
+                  </p>
+                </div>
+              ) : ngos.length === 0 ? (
                 <div className="text-center py-12">
                   <Building2 className="mx-auto h-12 w-12 text-slate-300" />
                   <p className="mt-3 text-slate-500">No NGOs available.</p>
