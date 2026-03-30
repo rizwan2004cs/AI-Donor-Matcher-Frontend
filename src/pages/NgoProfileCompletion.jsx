@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import LoadingOverlay from "../components/LoadingOverlay";
 import { CATEGORY_OPTIONS } from "../utils/categoryColors";
 import {
   NGO_PROFILE_FIELDS,
@@ -158,6 +159,15 @@ export default function NgoProfileCompletion() {
   return (
     <>
       <Navbar />
+      {(saving || uploading) && (
+        <LoadingOverlay
+          message={
+            saving
+              ? "Saving profile and locating your NGO..."
+              : "Uploading NGO photo..."
+          }
+        />
+      )}
       <div className="min-h-screen bg-teal-50">
         <main className="max-w-4xl mx-auto px-6 py-8">
           <header>
