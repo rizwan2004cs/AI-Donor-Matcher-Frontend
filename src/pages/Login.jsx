@@ -32,7 +32,7 @@ export default function Login() {
 
     if (user.role === "ADMIN") navigate("/admin/dashboard", { replace: true });
     else if (user.role === "NGO") navigate("/ngo/dashboard", { replace: true });
-    else navigate("/map", { replace: true });
+    else navigate("/", { replace: true });
   }, [user, navigate]);
 
   const onChange = (e) =>
@@ -57,7 +57,7 @@ export default function Login() {
       // Redirect based on role
       if (user.role === "ADMIN") navigate("/admin/dashboard");
       else if (user.role === "NGO") navigate("/ngo/dashboard");
-      else navigate("/map");
+      else navigate("/");
     } catch (err) {
       console.error("LOGIN ERROR:", err);
       setError(err.response?.data?.message || err.message || "Login failed");

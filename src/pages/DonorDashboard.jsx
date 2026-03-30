@@ -137,7 +137,7 @@ export default function DonorDashboard() {
           <Package className="w-12 h-12 mx-auto mb-2 opacity-40" />
           <p>No active pledges</p>
           <button
-            onClick={() => navigate("/map")}
+            onClick={() => navigate("/")}
             className="mt-3 text-sm text-teal-600 font-medium hover:text-teal-700 transition-all duration-200"
           >
             Discover needs on the map

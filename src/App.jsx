@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
+import { useAuth } from "./auth/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import useOnlineStatus from "./hooks/useOnlineStatus";
 
@@ -15,6 +16,24 @@ import DonorDashboard from "./pages/DonorDashboard";
 import NgoDashboard from "./pages/NgoDashboard";
 import NgoProfileCompletion from "./pages/NgoProfileCompletion";
 import AdminDashboard from "./pages/AdminDashboard";
+
+function HomeRoute() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === "ADMIN") {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  if (user.role === "NGO") {
+    return <Navigate to="/ngo/dashboard" replace />;
+  }
+
+  return <DiscoveryMap />;
+}
 
 function AppRoutes() {
   const online = useOnlineStatus();
@@ -35,14 +54,8 @@ function AppRoutes() {
         <Route path="/verify-email" element={<EmailVerificationPending />} />
 
         {/* Donor routes */}
-        <Route
-          path="/map"
-          element={
-            <ProtectedRoute role="DONOR">
-              <DiscoveryMap />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/" element={<HomeRoute />} />
+        <Route path="/map" element={<Navigate to="/" replace />} />
         <Route
           path="/ngo/:ngoId"
           element={
@@ -104,8 +117,6 @@ function AppRoutes() {
           }
         />
 
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>
