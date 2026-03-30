@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import NeedEditorModal from "../components/NeedEditorModal";
@@ -38,6 +38,9 @@ const STAT_CARDS = [
     color: "red",
   },
 ];
+
+const INITIAL_LIST_LIMIT = 10;
+const BACKGROUND_HYDRATE_DELAY_MS = 2500;
 
 function titleCase(value) {
   if (!value) return "";
@@ -84,15 +87,18 @@ function groupReportsByNgo(reports) {
   (Array.isArray(reports) ? reports : []).forEach((report) => {
     const ngo = report?.ngo || {};
     const ngoId = ngo.id ?? report?.ngoId;
+    const ngoName = report?.ngoName || getNgoName(ngo);
+    const ngoStatus = report?.ngoStatus || ngo?.status || null;
+    const reporterEmail = report?.reporterEmail || report?.reporter?.email || "Unknown reporter";
 
     if (!ngoId) return;
 
     if (!groups.has(ngoId)) {
       groups.set(ngoId, {
         ngoId,
-        ngoName: getNgoName(ngo) || report?.ngoName || "Unnamed NGO",
+        ngoName: ngoName || "Unnamed NGO",
         reportCount: 0,
-        status: ngo?.status || null,
+        status: ngoStatus,
         items: [],
       });
     }
@@ -102,7 +108,7 @@ function groupReportsByNgo(reports) {
     group.items.push({
       id: report?.id,
       reason: report?.reason || "No reason provided",
-      reporterEmail: report?.reporter?.email || "Unknown reporter",
+      reporterEmail,
       reportedAt: report?.reportedAt || null,
     });
   });
@@ -125,6 +131,10 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString();
 }
 
+function getApiErrorMessage(err, fallback) {
+  return err?.response?.data?.error || err?.response?.data?.message || fallback;
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [pendingVerifications, setPendingVerifications] = useState([]);
@@ -133,6 +143,9 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState("verify");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [hydratingFullLists, setHydratingFullLists] = useState(false);
+  const [initialListLimit] = useState(INITIAL_LIST_LIMIT);
+  const [approvingNgoId, setApprovingNgoId] = useState(null);
   const [expandedReportNgoId, setExpandedReportNgoId] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -147,21 +160,37 @@ export default function AdminDashboard() {
   const [editingNeedNgoId, setEditingNeedNgoId] = useState(null);
   const [savingNeed, setSavingNeed] = useState(false);
   const online = useOnlineStatus();
+  const expandedNeedsRef = useRef(null);
 
   const groupedReports = useMemo(() => groupReportsByNgo(reports), [reports]);
+  const expandedNgo = useMemo(
+    () => ngos.find((ngo) => ngo.id === expandedNgoId) || null,
+    [ngos, expandedNgoId]
+  );
 
   useEffect(() => {
-    const fetchAll = async () => {
+    let isCancelled = false;
+    let hydrateTimer;
+
+    const fetchInitial = async () => {
       setLoading(true);
       setError(null);
 
       try {
         const [statsRes, pendingRes, reportsRes, ngosRes] = await Promise.all([
           api.get("/api/admin/stats"),
-          api.get("/api/admin/ngos/pending"),
-          api.get("/api/admin/reports"),
-          api.get("/api/admin/ngos"),
+          api.get("/api/admin/ngos/pending", {
+            params: { limit: INITIAL_LIST_LIMIT },
+          }),
+          api.get("/api/admin/reports", {
+            params: { limit: INITIAL_LIST_LIMIT },
+          }),
+          api.get("/api/admin/ngos", {
+            params: { limit: INITIAL_LIST_LIMIT },
+          }),
         ]);
+
+        if (isCancelled) return;
 
         setStats(statsRes.data || {});
         setPendingVerifications(
@@ -169,20 +198,66 @@ export default function AdminDashboard() {
         );
         setReports(Array.isArray(reportsRes.data) ? reportsRes.data : []);
         setNgos((Array.isArray(ngosRes.data) ? ngosRes.data : []).map(normalizeNgo));
+
+        setHydratingFullLists(true);
+        hydrateTimer = window.setTimeout(async () => {
+          try {
+            const [pendingFullRes, reportsFullRes, ngosFullRes] = await Promise.all([
+              api.get("/api/admin/ngos/pending"),
+              api.get("/api/admin/reports"),
+              api.get("/api/admin/ngos"),
+            ]);
+
+            if (isCancelled) return;
+
+            setPendingVerifications(
+              (Array.isArray(pendingFullRes.data) ? pendingFullRes.data : []).map(normalizeNgo)
+            );
+            setReports(Array.isArray(reportsFullRes.data) ? reportsFullRes.data : []);
+            setNgos((Array.isArray(ngosFullRes.data) ? ngosFullRes.data : []).map(normalizeNgo));
+          } catch (err) {
+            if (!isCancelled) {
+              console.error("Failed to hydrate full admin lists", err);
+            }
+          } finally {
+            if (!isCancelled) {
+              setHydratingFullLists(false);
+            }
+          }
+        }, BACKGROUND_HYDRATE_DELAY_MS);
       } catch (err) {
         console.error("Failed to load admin data", err);
-        setError(
-          err.response?.data?.error ||
-            err.response?.data?.message ||
-            "Failed to load admin dashboard."
-        );
+        if (!isCancelled) {
+          setError(getApiErrorMessage(err, "Failed to load admin dashboard."));
+          setHydratingFullLists(false);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchAll();
+    fetchInitial();
+
+    return () => {
+      isCancelled = true;
+      if (hydrateTimer) {
+        window.clearTimeout(hydrateTimer);
+      }
+    };
   }, []);
+
+  useEffect(() => {
+    if (!expandedNgoId || loadingNeedsNgoId === expandedNgoId || !expandedNeedsRef.current) {
+      return;
+    }
+
+    expandedNeedsRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [expandedNgoId, loadingNeedsNgoId]);
 
   const approveNgo = async (ngoId) => {
     if (!online) {
@@ -190,10 +265,23 @@ export default function AdminDashboard() {
       return;
     }
 
+    setApprovingNgoId(ngoId);
+
     try {
       await api.post(`/api/admin/ngos/${ngoId}/approve`);
       setPendingVerifications((current) =>
         current.filter((ngo) => ngo.id !== ngoId)
+      );
+      setNgos((current) =>
+        current.map((ngo) =>
+          ngo.id === ngoId
+            ? {
+                ...ngo,
+                status: "APPROVED",
+                verifiedAt: new Date().toISOString(),
+              }
+            : ngo
+        )
       );
       setStats((current) =>
         current
@@ -205,7 +293,9 @@ export default function AdminDashboard() {
           : current
       );
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to approve NGO.");
+      alert(getApiErrorMessage(err, "Failed to approve NGO."));
+    } finally {
+      setApprovingNgoId(null);
     }
   };
 
@@ -246,7 +336,7 @@ export default function AdminDashboard() {
       );
       closeRejectModal();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to reject NGO.");
+      alert(getApiErrorMessage(err, "Failed to reject NGO."));
       setRejecting(false);
     }
   };
@@ -278,7 +368,7 @@ export default function AdminDashboard() {
         ...response.data,
       });
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to suspend NGO.");
+      alert(getApiErrorMessage(err, "Failed to suspend NGO."));
     } finally {
       setSuspending(false);
     }
@@ -300,7 +390,7 @@ export default function AdminDashboard() {
         [ngoId]: Array.isArray(response.data) ? response.data : [],
       }));
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to load NGO needs.");
+      alert(getApiErrorMessage(err, "Failed to load NGO needs."));
     } finally {
       setLoadingNeedsNgoId(null);
     }
@@ -345,7 +435,7 @@ export default function AdminDashboard() {
       await loadNgoNeeds(editingNeedNgoId);
       closeNeedEditor();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to update need.");
+      alert(getApiErrorMessage(err, "Failed to update need."));
       setSavingNeed(false);
     }
   };
@@ -361,29 +451,62 @@ export default function AdminDashboard() {
       await api.delete(`/api/admin/needs/${needId}`);
       await loadNgoNeeds(ngoId);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to delete need.");
+      alert(getApiErrorMessage(err, "Failed to delete need."));
     }
   };
 
   const tabCounts = {
-    verify: pendingVerifications.length,
-    reports: groupedReports.length,
-    ngos: ngos.length,
+    verify: Number(stats?.pendingNgos ?? pendingVerifications.length),
+    reports: Number(stats?.totalReports ?? reports.length),
+    ngos: Number(stats?.totalNgos ?? ngos.length),
   };
 
   return (
     <>
       <Navbar />
       <div className="min-h-screen bg-teal-50">
-        <div className="glass-nav text-white px-6 py-6">
-          <h1 className="text-xl font-bold">Admin Dashboard</h1>
-          <p className="text-teal-200 text-sm mt-1">
-            Moderate reports, review pending NGOs, and manage supported admin actions.
-          </p>
-        </div>
+        <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
+          <div className="overflow-hidden rounded-[28px] border border-teal-700/20 bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-6 py-8 text-white shadow-[0_24px_80px_rgba(13,148,136,0.18)] sm:px-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-teal-100/80">
+                  Control Center
+                </p>
+                <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+                  Admin Dashboard
+                </h1>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-teal-50/85 sm:text-base">
+                  Moderate reports, approve pending NGOs, and manage supportable
+                  admin actions without leaving the review queue.
+                </p>
+              </div>
+
+              {stats && (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <HeroMetric
+                    label="Pending"
+                    value={tabCounts.verify}
+                  />
+                  <HeroMetric
+                    label="Reports"
+                    value={tabCounts.reports}
+                  />
+                  <HeroMetric
+                    label="NGOs"
+                    value={tabCounts.ngos}
+                  />
+                  <HeroMetric
+                    label="Today"
+                    value={stats.pledgesToday}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
 
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 max-w-5xl mx-auto">
+          <div className="mx-auto mt-6 grid max-w-6xl gap-4 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
             {STAT_CARDS.map(({ key, label, icon, color }) => (
               <StatCard
                 key={key}
@@ -396,23 +519,36 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <div className="flex border-b glass-subtle max-w-5xl mx-auto rounded-t-2xl overflow-hidden">
+        {!loading && (
+          <div className="mx-auto mt-5 max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="glass flex items-center gap-3 rounded-2xl border border-white/60 px-4 py-3 text-sm text-slate-600 shadow-sm">
+              <div className="h-2.5 w-2.5 rounded-full bg-teal-500" />
+              {hydratingFullLists
+                ? `Showing the first ${initialListLimit} records now. The full admin lists are loading in the background.`
+                : "Admin lists are fully loaded."}
+            </div>
+          </div>
+        )}
+
+        <div className="mx-auto mt-5 max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="glass-subtle grid overflow-hidden rounded-[24px] border border-white/60 p-2 shadow-sm md:grid-cols-3">
           {TABS.map((item) => (
             <button
               key={item.id}
               onClick={() => setTab(item.id)}
-              className={`flex-1 py-3 text-sm font-medium text-center border-b-2 transition-all duration-200 ${
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold text-center transition-all duration-200 ${
                 tab === item.id
-                  ? "border-teal-600 text-teal-700"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
+                  ? "bg-white text-teal-700 shadow-sm"
+                  : "text-slate-500 hover:bg-white/60 hover:text-slate-700"
               }`}
             >
               {item.label} ({tabCounts[item.id]})
             </button>
           ))}
+          </div>
         </div>
 
-        <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
+        <main className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
           {loading && (
             <div className="flex items-center justify-center py-12">
               <div className="h-8 w-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
@@ -474,15 +610,19 @@ export default function AdminDashboard() {
                     <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
                       <button
                         onClick={() => approveNgo(ngo.id)}
-                        disabled={!online}
+                        disabled={!online || approvingNgoId === ngo.id}
                         className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                       >
                         <CheckCircle className="h-4 w-4" />
-                        {online ? "Approve" : "Offline"}
+                        {!online
+                          ? "Offline"
+                          : approvingNgoId === ngo.id
+                            ? "Approving..."
+                            : "Approve"}
                       </button>
                       <button
                         onClick={() => openRejectModal(ngo)}
-                        disabled={!online}
+                        disabled={!online || approvingNgoId === ngo.id}
                         className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                       >
                         <XCircle className="h-4 w-4" />
@@ -684,7 +824,11 @@ export default function AdminDashboard() {
                           ) : (
                             <ChevronDown className="h-4 w-4" />
                           )}
-                          {expandedNgoId === ngo.id ? "Hide Needs" : "View Needs"}
+                          {loadingNeedsNgoId === ngo.id
+                            ? "Loading Needs..."
+                            : expandedNgoId === ngo.id
+                              ? "Hide Needs"
+                              : "View Needs"}
                         </button>
                         <button
                           type="button"
@@ -708,10 +852,12 @@ export default function AdminDashboard() {
               )}
 
               {expandedNgoId && (
-                <section className="glass rounded-2xl p-6">
+                <section ref={expandedNeedsRef} className="glass rounded-2xl p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-xl font-semibold text-slate-900">NGO Needs</h3>
+                      <h3 className="text-xl font-semibold text-slate-900">
+                        {expandedNgo?.name ? `${expandedNgo.name} Needs` : "NGO Needs"}
+                      </h3>
                       <p className="text-sm text-slate-600 mt-1">
                         Review and moderate the selected NGO&apos;s active and historical needs.
                       </p>
@@ -913,19 +1059,38 @@ export default function AdminDashboard() {
 
 function StatCard({ icon: Icon, label, value, color }) {
   const colorClasses = {
-    blue: "bg-teal-50 text-teal-700",
-    green: "bg-emerald-50 text-emerald-700",
-    yellow: "bg-amber-50 text-amber-700",
-    red: "bg-red-50 text-red-700",
+    blue: "border-teal-200/70 bg-white text-teal-700",
+    green: "border-emerald-200/70 bg-white text-emerald-700",
+    yellow: "border-amber-200/80 bg-white text-amber-700",
+    red: "border-rose-200/80 bg-white text-rose-700",
   };
 
   return (
     <div
-      className={`rounded-2xl p-4 backdrop-blur-sm ${colorClasses[color] || colorClasses.blue}`}
+      className={`glass rounded-[24px] border p-5 shadow-sm ${colorClasses[color] || colorClasses.blue}`}
     >
-      <Icon className="w-5 h-5 mb-1 opacity-70" />
-      <p className="text-2xl font-bold">{value ?? "-"}</p>
-      <p className="text-xs opacity-70">{label}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] opacity-60">
+            {label}
+          </p>
+          <p className="mt-3 text-4xl font-bold leading-none">{value ?? "-"}</p>
+        </div>
+        <div className="rounded-2xl bg-current/10 p-3">
+          <Icon className="h-5 w-5 opacity-80" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroMetric({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-teal-50/70">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-bold text-white">{value ?? "-"}</p>
     </div>
   );
 }

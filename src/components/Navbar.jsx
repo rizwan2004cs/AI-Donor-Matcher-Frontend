@@ -4,6 +4,14 @@ import { useAuth } from "../auth/AuthContext";
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const homePath =
+    user?.role === "ADMIN"
+      ? "/admin/dashboard"
+      : user?.role === "NGO"
+        ? "/ngo/dashboard"
+        : user?.role === "DONOR"
+          ? "/donor/dashboard"
+          : "/";
 
   const handleLogout = () => {
     logout();
@@ -14,7 +22,7 @@ export default function Navbar() {
     <header className="bg-teal-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <nav className="glass-nav text-white px-4 sm:px-6 py-3 flex items-center justify-between rounded-2xl shadow-md">
-          <Link to="/" className="text-lg font-bold tracking-tight">
+          <Link to={homePath} className="text-lg font-bold tracking-tight">
             AI Donor Matcher
           </Link>
 

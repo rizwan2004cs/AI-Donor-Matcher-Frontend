@@ -6,6 +6,18 @@ import Navbar from "../components/Navbar";
 import LoadingOverlay from "../components/LoadingOverlay";
 import useOnlineStatus from "../hooks/useOnlineStatus";
 
+function normalizeAuthUser(data) {
+  return (
+    data.user ?? {
+      id: data.userId ?? null,
+      fullName: data.fullName ?? "",
+      email: data.email ?? "",
+      role: data.role ?? "",
+      emailVerified: Boolean(data.emailVerified),
+    }
+  );
+}
+
 export default function Register() {
   const navigate = useNavigate();
   const { user, login } = useAuth();
@@ -17,6 +29,7 @@ export default function Register() {
   });
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Creating Account...");
   const [error, setError] = useState(null);
   const [step, setStep] = useState(1); // 1: Info, 2: OTP
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -98,6 +111,7 @@ export default function Register() {
     }
 
     setLoading(true);
+    setLoadingMessage("Sending verification code...");
     setError(null);
 
     try {
@@ -120,6 +134,11 @@ export default function Register() {
     }
 
     setLoading(true);
+    setLoadingMessage(
+      role === "NGO"
+        ? "Creating NGO account and preparing your workspace..."
+        : "Creating your account..."
+    );
     setError(null);
 
     try {
@@ -131,6 +150,7 @@ export default function Register() {
         return;
       }
 
+      let authPayload;
       if (role === "NGO") {
         const formData = new FormData();
         formData.append("fullName", form.fullName);
@@ -145,19 +165,44 @@ export default function Register() {
         const res = await api.post("/api/auth/register", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        if (res.data?.token && res.data?.user) {
-          login(res.data.user, res.data.token);
-        }
+        authPayload = res.data;
       } else {
-        const res = await api.post("/api/auth/register", { ...form, role: "DONOR", otp: otpString });
-        if (res.data?.token && res.data?.user) {
-          login(res.data.user, res.data.token);
-        }
+        const res = await api.post("/api/auth/register", {
+          ...form,
+          role: "DONOR",
+          otp: otpString,
+        });
+        authPayload = res.data;
       }
-      // Registration successful, AuthContext will handle redirect based on user role
+
+      const token = authPayload?.token;
+      const registeredUser = normalizeAuthUser(authPayload);
+
+      if (!token || !registeredUser?.role) {
+        throw new Error("Registration succeeded but auth payload was incomplete.");
+      }
+
+      login(registeredUser, token);
+
+      if (registeredUser.role === "ADMIN") {
+        navigate("/admin/dashboard", { replace: true });
+        return;
+      }
+
+      if (registeredUser.role === "NGO") {
+        navigate("/ngo/complete-profile", { replace: true });
+        return;
+      }
+
+      navigate("/", { replace: true });
     } catch (err) {
       console.error("REGISTRATION ERROR:", err);
-      setError(err.response?.data?.message || err.message || "Registration failed");
+      setError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          err.message ||
+          "Registration failed"
+      );
     } finally {
       setLoading(false);
     }
@@ -166,7 +211,7 @@ export default function Register() {
   return (
     <>
       <Navbar />
-      {loading && <LoadingOverlay message="Creating Account..." />}
+      {loading && <LoadingOverlay message={loadingMessage} />}
       <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
         <form
           onSubmit={step === 1 ? onSendOtp : onRegister}
