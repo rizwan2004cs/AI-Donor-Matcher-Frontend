@@ -32,10 +32,16 @@ export default function NgoProfile() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handlePledge = (needId) => {
+  const handlePledge = (need) => {
     if (!user) return navigate("/login");
     if (!user.emailVerified) return;
-    navigate(`/pledge/${needId}`);
+    navigate(`/pledge/${need.id}`, {
+      state: {
+        ...need,
+        ngoId: ngo.id,
+        ngoName: ngo.name,
+      },
+    });
   };
 
   const submitReport = async () => {
@@ -153,7 +159,7 @@ export default function NgoProfile() {
                       {remaining} remaining of {need.quantityRequired}
                     </p>
                     <button
-                      onClick={() => handlePledge(need.id)}
+                      onClick={() => handlePledge(need)}
                       disabled={
                         user && !user.emailVerified
                       }

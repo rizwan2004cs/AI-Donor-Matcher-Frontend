@@ -1,67 +1,92 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "../utils/categoryColors";
 import useOnlineStatus from "../hooks/useOnlineStatus";
+import { saveDeliverySession } from "../utils/deliverySession";
 
 export default function PledgeScreen() {
   const { needId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
-  const [need, setNeed] = useState(null);
+  const online = useOnlineStatus();
   const [qty, setQty] = useState(1);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const online = useOnlineStatus();
 
-  useEffect(() => {
-    api
-      .get(`/api/needs/${needId}`)
-      .then((res) => setNeed(res.data))
-      .catch((err) =>
-        setError(err.response?.data?.message || "Failed to load need")
-      )
-      .finally(() => setLoading(false));
-  }, [needId]);
-
+  const need = useMemo(() => location.state || null, [location.state]);
   const remaining = need
-    ? need.quantityRequired - need.quantityPledged
+    ? Math.max(Number(need.quantityRequired || 0) - Number(need.quantityPledged || 0), 0)
     : 0;
 
-  const increment = () => setQty((q) => Math.min(q + 1, remaining));
-  const decrement = () => setQty((q) => Math.max(q - 1, 1));
+  const clampQuantity = (value) => {
+    if (remaining <= 0) return 0;
+    return Math.max(1, Math.min(Number(value || 1), remaining));
+  };
+
+  const increment = () => setQty((current) => clampQuantity(current + 1));
+  const decrement = () => setQty((current) => clampQuantity(current - 1));
 
   const onSubmit = async () => {
+    if (!need) return;
     if (!online) {
-      alert("You are offline. This action requires an internet connection.");
+      setError("You are offline. This action requires an internet connection.");
       return;
     }
+
     setSubmitting(true);
+    setError(null);
+
     try {
-      const res = await api.post("/api/pledges", { needId, quantity: qty });
-      navigate(`/delivery/${res.data.pledgeId}`, { state: res.data });
+      const response = await api.post("/api/pledges", {
+        needId: Number(needId),
+        quantity: qty,
+      });
+
+      const deliveryState = {
+        ...response.data,
+        quantity: qty,
+        itemName: need.itemName,
+        category: need.category,
+        ngoName: need.ngoName,
+      };
+
+      saveDeliverySession(response.data.pledgeId, deliveryState);
+      navigate(`/delivery/${response.data.pledgeId}`, { state: deliveryState });
     } catch (err) {
-      setError(err.response?.data?.message || "Pledge failed");
+      setError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Pledge failed"
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading)
+  if (!need) {
     return (
       <>
         <Navbar />
-        <div className="p-8 text-center text-slate-400">Loading...</div>
+        <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
+          <div className="glass rounded-2xl p-8 w-full max-w-lg space-y-4">
+            <h1 className="text-xl font-bold text-slate-900">Pledge Details Unavailable</h1>
+            <p className="text-sm text-slate-600">
+              This screen currently depends on need details being passed from the NGO
+              profile because the backend has not yet confirmed `GET /api/needs/{needId}`.
+            </p>
+            <button
+              onClick={() => navigate("/map")}
+              className="bg-teal-600 text-white py-2.5 px-5 rounded-xl font-medium hover:bg-teal-700 transition-all duration-200"
+            >
+              Back to Discovery Map
+            </button>
+          </div>
+        </div>
       </>
     );
-  if (error)
-    return (
-      <>
-        <Navbar />
-        <div className="p-8 text-center text-red-500">{error}</div>
-      </>
-    );
+  }
 
   return (
     <>
@@ -83,15 +108,14 @@ export default function PledgeScreen() {
                 <span
                   className="w-2.5 h-2.5 rounded-full"
                   style={{
-                    backgroundColor:
-                      CATEGORY_COLORS[need.category] || "#6B7280",
+                    backgroundColor: CATEGORY_COLORS[need.category] || "#6B7280",
                   }}
                 />
                 {CATEGORY_LABELS[need.category] || need.category}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Urgency:</span>
+              <span className="text-slate-500">Urgency:</span>
               <span
                 className={
                   need.urgency === "URGENT"
@@ -99,12 +123,12 @@ export default function PledgeScreen() {
                     : "text-slate-700"
                 }
               >
-                {need.urgency === "URGENT" ? "🔴 Urgent" : "● Normal"}
+                {need.urgency === "URGENT" ? "Urgent" : "Normal"}
               </span>
             </div>
           </div>
 
-          <hr />
+          <hr className="border-slate-200" />
 
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
@@ -115,13 +139,13 @@ export default function PledgeScreen() {
               <span className="text-slate-500">Pledged by others:</span>
               <span>{need.quantityPledged}</span>
             </div>
-            <div className="flex justify-between font-semibold">
+            <div className="flex justify-between font-semibold text-slate-900">
               <span>Still remaining:</span>
               <span>{remaining}</span>
             </div>
           </div>
 
-          <hr />
+          <hr className="border-slate-200" />
 
           <div>
             <p className="text-sm text-slate-600 mb-2">
@@ -130,16 +154,23 @@ export default function PledgeScreen() {
             <div className="flex items-center gap-4 justify-center">
               <button
                 onClick={decrement}
-                className="w-10 h-10 rounded-full border text-lg font-bold hover:bg-white/40 transition-all duration-200"
+                disabled={qty <= 1}
+                className="w-10 h-10 rounded-full border border-slate-200 text-lg font-bold hover:bg-white/40 transition-all duration-200 disabled:opacity-30"
               >
-                −
+                -
               </button>
-              <span className="text-2xl font-bold w-12 text-center">
-                {qty}
-              </span>
+              <input
+                type="number"
+                value={qty}
+                onChange={(event) => setQty(clampQuantity(event.target.value))}
+                className="w-20 text-center text-xl font-bold bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl py-2 focus:ring-2 focus:ring-teal-400 focus:border-transparent focus:outline-none transition-all duration-200"
+                min={1}
+                max={remaining}
+              />
               <button
                 onClick={increment}
-                className="w-10 h-10 rounded-full border text-lg font-bold hover:bg-white/40 transition-all duration-200"
+                disabled={qty >= remaining}
+                className="w-10 h-10 rounded-full border border-slate-200 text-lg font-bold hover:bg-white/40 transition-all duration-200 disabled:opacity-30"
               >
                 +
               </button>
@@ -147,21 +178,22 @@ export default function PledgeScreen() {
             </div>
           </div>
 
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+
           <button
             onClick={onSubmit}
-            disabled={submitting || !online}
+            disabled={submitting || !online || remaining <= 0}
             className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting
               ? "Pledging..."
               : online
-                ? "Confirm Pledge"
+                ? `Confirm Pledge (${qty} items)`
                 : "Offline"}
           </button>
 
           <p className="text-xs text-slate-400 text-center">
-            A confirmation email will be sent to you with NGO address and
-            contact.
+            A confirmation email will be sent to you with NGO address and contact.
           </p>
         </div>
       </div>
