@@ -7,6 +7,7 @@ import ReportModal from "../components/ReportModal";
 import TrustBadge from "../components/TrustBadge";
 import NeedProgressBar from "../components/NeedProgressBar";
 import { CATEGORY_COLORS } from "../utils/categoryColors";
+import { ArrowLeft } from "lucide-react";
 
 function titleCase(value) {
   if (!value) return "";
@@ -25,7 +26,7 @@ function formatDate(value) {
 }
 
 export default function NgoProfile() {
-  const { id } = useParams();
+  const { ngoId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [ngo, setNgo] = useState(null);
@@ -35,7 +36,7 @@ export default function NgoProfile() {
 
   useEffect(() => {
     api
-      .get(`/api/ngos/${id}`)
+      .get(`/api/ngos/${ngoId}`)
       .then((res) => setNgo(res.data))
       .catch((err) =>
         setError(
@@ -45,7 +46,7 @@ export default function NgoProfile() {
         )
       )
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [ngoId]);
 
   const activeNeeds = useMemo(
     () => (Array.isArray(ngo?.activeNeeds) ? ngo.activeNeeds : []),
@@ -97,6 +98,15 @@ export default function NgoProfile() {
       <Navbar />
       <div className="min-h-screen bg-teal-50">
         <main className="max-w-3xl mx-auto p-6 space-y-6">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all duration-200 hover:bg-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
+
           <div className="glass rounded-2xl p-6">
             <div className="flex items-start gap-4">
               {ngo.photoUrl ? (

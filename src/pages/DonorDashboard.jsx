@@ -3,7 +3,16 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import { CATEGORY_COLORS } from "../utils/categoryColors";
-import { Clock3, History, Navigation, Package, X } from "lucide-react";
+import {
+  ArrowRight,
+  Clock3,
+  HeartHandshake,
+  History,
+  MapPinned,
+  Navigation,
+  Package,
+  X,
+} from "lucide-react";
 import useOnlineStatus from "../hooks/useOnlineStatus";
 
 function formatDate(value) {
@@ -41,6 +50,13 @@ function normalizePledge(pledge) {
   };
 }
 
+function isExpiringSoon(expiresAt) {
+  if (!expiresAt) return false;
+
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  return diff > 0 && diff <= 6 * 60 * 60 * 1000;
+}
+
 export default function DonorDashboard() {
   const navigate = useNavigate();
   const online = useOnlineStatus();
@@ -52,6 +68,14 @@ export default function DonorDashboard() {
   const [error, setError] = useState(null);
 
   const historyLoaded = useMemo(() => history.length > 0, [history]);
+  const fulfilledCount = useMemo(
+    () => history.filter((pledge) => pledge.status === "FULFILLED").length,
+    [history]
+  );
+  const expiringSoonCount = useMemo(
+    () => activePledges.filter((pledge) => isExpiringSoon(pledge.expiresAt)).length,
+    [activePledges]
+  );
 
   const loadActivePledges = async () => {
     setActiveLoading(true);
@@ -133,14 +157,23 @@ export default function DonorDashboard() {
 
     if (activePledges.length === 0) {
       return (
-        <div className="text-center py-12 text-slate-400">
-          <Package className="w-12 h-12 mx-auto mb-2 opacity-40" />
-          <p>No active pledges</p>
+        <div className="glass rounded-[28px] border border-white/60 px-6 py-14 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-teal-100 text-teal-700">
+            <HeartHandshake className="h-8 w-8" />
+          </div>
+          <h2 className="mt-5 text-2xl font-semibold text-slate-900">
+            Your next donation journey starts here
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500">
+            You do not have any active pledges yet. Browse nearby NGO needs and turn this
+            space into a live delivery board.
+          </p>
           <button
             onClick={() => navigate("/")}
-            className="mt-3 text-sm text-teal-600 font-medium hover:text-teal-700 transition-all duration-200"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 font-medium text-white shadow-sm transition-all duration-200 hover:bg-teal-700 hover:shadow"
           >
-            Discover needs on the map
+            Explore the map
+            <ArrowRight className="h-4 w-4" />
           </button>
         </div>
       );
@@ -152,51 +185,71 @@ export default function DonorDashboard() {
       return (
         <article
           key={pledge.id}
-          className="glass rounded-2xl p-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+          className="glass rounded-[26px] border border-white/60 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
         >
-          <div className="flex items-center gap-3">
-            <span
-              className="w-3 h-3 rounded-full flex-shrink-0"
-              style={{
-                backgroundColor: CATEGORY_COLORS[pledge.category] || "#6B7280",
-              }}
-            />
-            <div>
-              <p className="font-medium text-sm text-slate-900">
-                {pledge.itemName} x {pledge.quantity}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">{pledge.ngoName}</p>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div
+                className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-white shadow-sm"
+                style={{
+                  backgroundColor: CATEGORY_COLORS[pledge.category] || "#0D9488",
+                }}
+              >
+                <Package className="h-5 w-5" />
+              </div>
+
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-lg font-semibold text-slate-900">
+                    {pledge.itemName} x {pledge.quantity}
+                  </p>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                    {pledge.category}
+                  </span>
+                </div>
+                <p className="mt-2 inline-flex items-center gap-2 text-sm text-slate-500">
+                  <MapPinned className="h-4 w-4 text-teal-600" />
+                  {pledge.ngoName}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Created {formatDate(pledge.createdAt) || "recently"}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex flex-col items-start gap-2 sm:items-end">
-            {countdown && (
-              <span
-                className={`text-xs inline-flex items-center gap-1 ${
-                  countdown === "Expired" ? "text-red-500" : "text-amber-600"
-                }`}
-              >
-                <Clock3 className="w-3 h-3" />
-                {countdown}
-              </span>
-            )}
+            <div className="flex flex-col gap-3 lg:items-end">
+              {countdown && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
+                    countdown === "Expired"
+                      ? "bg-red-100 text-red-600"
+                      : isExpiringSoon(pledge.expiresAt)
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-teal-100 text-teal-700"
+                  }`}
+                >
+                  <Clock3 className="h-3.5 w-3.5" />
+                  {countdown === "Expired" ? "Delivery window expired" : `${countdown} left`}
+                </span>
+              )}
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate(`/delivery/${pledge.id}`)}
-                className="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-teal-700 transition-all duration-200"
-              >
-                <Navigation className="w-3 h-3" />
-                Navigate
-              </button>
-              <button
-                onClick={() => cancelPledge(pledge.id)}
-                disabled={!online}
-                className="text-xs bg-red-50 border border-red-200 text-red-600 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <X className="w-3 h-3" />
-                {online ? "Cancel" : "Offline"}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => navigate(`/delivery/${pledge.id}`)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-teal-700 hover:shadow"
+                >
+                  <Navigation className="h-4 w-4" />
+                  Open delivery
+                </button>
+                <button
+                  onClick={() => cancelPledge(pledge.id)}
+                  disabled={!online}
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition-all duration-200 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <X className="h-4 w-4" />
+                  {online ? "Cancel pledge" : "Offline"}
+                </button>
+              </div>
             </div>
           </div>
         </article>
@@ -215,9 +268,17 @@ export default function DonorDashboard() {
 
     if (history.length === 0) {
       return (
-        <div className="text-center py-12 text-slate-400">
-          <History className="w-12 h-12 mx-auto mb-2 opacity-40" />
-          <p>No donation history yet.</p>
+        <div className="glass rounded-[28px] border border-white/60 px-6 py-14 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-500">
+            <History className="h-8 w-8" />
+          </div>
+          <h2 className="mt-5 text-2xl font-semibold text-slate-900">
+            Your impact timeline is still empty
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500">
+            Once your pledges are completed or closed, they will appear here as a record
+            of the NGOs you supported.
+          </p>
         </div>
       );
     }
@@ -230,28 +291,39 @@ export default function DonorDashboard() {
         <article
           key={pledge.id}
           onClick={() => canOpenNgo && navigate(`/ngo/${pledge.ngoId}`)}
-          className={`glass rounded-2xl p-4 flex items-center justify-between gap-4 ${
-            canOpenNgo ? "cursor-pointer hover:bg-white/80 transition-all duration-200" : ""
+          className={`glass rounded-[26px] border border-white/60 p-5 shadow-sm ${
+            canOpenNgo ? "cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-md" : ""
           }`}
         >
-          <div className="flex items-center gap-3">
-            <span
-              className="w-3 h-3 rounded-full flex-shrink-0"
+          <div className="flex items-start gap-4">
+            <div
+              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-white shadow-sm"
               style={{
-                backgroundColor: CATEGORY_COLORS[pledge.category] || "#6B7280",
+                backgroundColor: CATEGORY_COLORS[pledge.category] || "#0D9488",
               }}
-            />
+            >
+              <Package className="h-5 w-5" />
+            </div>
+
             <div>
-              <p className="font-medium text-sm text-slate-900">
-                {pledge.itemName} x {pledge.quantity}
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-lg font-semibold text-slate-900">
+                  {pledge.itemName} x {pledge.quantity}
+                </p>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {pledge.category}
+                </span>
+              </div>
+              <p className="mt-2 inline-flex items-center gap-2 text-sm text-slate-500">
+                <MapPinned className="h-4 w-4 text-teal-600" />
+                {pledge.ngoName}
               </p>
-              <p className="text-xs text-slate-500 mt-1">{pledge.ngoName}</p>
             </div>
           </div>
 
           <div className="text-right">
             <span
-              className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
                 isFulfilled
                   ? "bg-emerald-100 text-emerald-700"
                   : "bg-slate-100 text-slate-600"
@@ -272,41 +344,123 @@ export default function DonorDashboard() {
     <>
       <Navbar />
       <div className="min-h-screen bg-teal-50">
-        <div className="glass-nav text-white px-6 py-6">
-          <h1 className="text-xl font-bold tracking-tight">Donor Dashboard</h1>
-          <p className="text-teal-200 text-sm mt-1">Manage your active and past pledges</p>
+        <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
+          <div className="overflow-hidden rounded-[28px] border border-teal-700/20 bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-6 py-6 text-white shadow-[0_24px_80px_rgba(13,148,136,0.18)] sm:px-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-teal-100/80">
+                  Donor Space
+                </p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-[2rem]">
+                  Donor Dashboard
+                </h1>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-teal-50/85">
+                  Track active deliveries, revisit completed pledges, and jump back into
+                  the discovery map whenever you are ready to support another NGO.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <HeroMetric label="Active" value={activePledges.length} />
+                <HeroMetric label="History" value={history.length} />
+                <HeroMetric label="Expiring Soon" value={expiringSoonCount} />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto mt-6 grid max-w-6xl gap-4 px-4 sm:grid-cols-2 lg:grid-cols-3 sm:px-6 lg:px-8">
+          <StatCard
+            icon={Package}
+            label="Active pledges"
+            value={activePledges.length}
+            tone="teal"
+          />
+          <StatCard
+            icon={History}
+            label="History entries"
+            value={history.length}
+            tone="slate"
+          />
+          <StatCard
+            icon={HeartHandshake}
+            label="Fulfilled support"
+            value={fulfilledCount}
+            tone="emerald"
+          />
+        </section>
+
+        <div className="mx-auto mt-6 max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="glass-subtle grid overflow-hidden rounded-[24px] border border-white/60 p-2 shadow-sm md:grid-cols-2">
+            <button
+              onClick={() => setTab("active")}
+              className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+                tab === "active"
+                  ? "bg-white text-teal-700 shadow-sm"
+                  : "text-slate-500 hover:bg-white/60 hover:text-slate-700"
+              }`}
+            >
+              <Package className="h-4 w-4" />
+              Active ({activePledges.length})
+            </button>
+            <button
+              onClick={() => setTab("history")}
+              className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+                tab === "history"
+                  ? "bg-white text-teal-700 shadow-sm"
+                  : "text-slate-500 hover:bg-white/60 hover:text-slate-700"
+              }`}
+            >
+              <History className="h-4 w-4" />
+              History ({history.length})
+            </button>
+          </div>
         </div>
 
-        <div className="flex border-b bg-white/70 backdrop-blur-sm">
-          <button
-            onClick={() => setTab("active")}
-            className={`flex-1 py-3 text-sm font-medium text-center border-b-2 transition-all duration-200 ${
-              tab === "active"
-                ? "border-teal-600 text-teal-700"
-                : "border-transparent text-slate-500"
-            }`}
-          >
-            <Package className="w-4 h-4 inline mr-1" />
-            Active ({activePledges.length})
-          </button>
-          <button
-            onClick={() => setTab("history")}
-            className={`flex-1 py-3 text-sm font-medium text-center border-b-2 transition-all duration-200 ${
-              tab === "history"
-                ? "border-teal-600 text-teal-700"
-                : "border-transparent text-slate-500"
-            }`}
-          >
-            <History className="w-4 h-4 inline mr-1" />
-            History ({history.length})
-          </button>
-        </div>
-
-        <main className="p-4 max-w-3xl mx-auto space-y-3">
+        <main className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
           {error && <div className="glass rounded-2xl p-4 text-sm text-red-500">{error}</div>}
           {tab === "active" ? renderActiveContent() : renderHistoryContent()}
         </main>
       </div>
     </>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, tone }) {
+  const toneClasses = {
+    teal: "text-teal-700",
+    slate: "text-slate-700",
+    emerald: "text-emerald-700",
+  };
+
+  return (
+    <div className="glass rounded-[24px] border border-white/60 p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+            {label}
+          </p>
+          <p className="mt-3 text-4xl font-bold text-slate-900">{value}</p>
+        </div>
+        <div
+          className={`rounded-2xl bg-white/70 p-3 ${
+            toneClasses[tone] || toneClasses.teal
+          }`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroMetric({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 backdrop-blur-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-teal-50/70">
+        {label}
+      </p>
+      <p className="mt-1.5 text-xl font-bold text-white">{value}</p>
+    </div>
   );
 }

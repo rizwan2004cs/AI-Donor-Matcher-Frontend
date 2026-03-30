@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
@@ -20,11 +20,21 @@ function normalizeAuthUser(data) {
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, login } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const online = useOnlineStatus();
+
+  useEffect(() => {
+    const prefilledEmail = location.state?.prefillEmail;
+    if (!prefilledEmail) return;
+
+    setForm((current) =>
+      current.email === prefilledEmail ? current : { ...current, email: prefilledEmail }
+    );
+  }, [location.state]);
 
   // If already logged in, don't show login form — redirect by role
   useEffect(() => {
@@ -60,7 +70,15 @@ export default function Login() {
       else navigate("/");
     } catch (err) {
       console.error("LOGIN ERROR:", err);
-      setError(err.response?.data?.message || err.message || "Login failed");
+      const status = err.response?.status;
+      const message =
+        err.response?.data?.error || err.response?.data?.message || err.message || "";
+
+      if (status === 401) {
+        setError("Invalid credentials. Please check your email and password.");
+      } else {
+        setError(message || "Login failed");
+      }
     } finally {
       setLoading(false);
     }

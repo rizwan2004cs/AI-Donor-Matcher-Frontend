@@ -552,16 +552,16 @@ export default function AdminDashboard() {
       <Navbar />
       <div className="min-h-screen bg-teal-50">
         <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
-          <div className="overflow-hidden rounded-[28px] border border-teal-700/20 bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-6 py-8 text-white shadow-[0_24px_80px_rgba(13,148,136,0.18)] sm:px-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="overflow-hidden rounded-[28px] border border-teal-700/20 bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-6 py-6 text-white shadow-[0_24px_80px_rgba(13,148,136,0.18)] sm:px-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-2xl">
                 <p className="text-xs font-semibold uppercase tracking-[0.32em] text-teal-100/80">
                   Control Center
                 </p>
-                <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+                <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-[2rem]">
                   Admin Dashboard
                 </h1>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-teal-50/85 sm:text-base">
+                <p className="mt-2 max-w-xl text-sm leading-6 text-teal-50/85">
                   Moderate reports, approve pending NGOs, and manage supportable
                   admin actions without leaving the review queue.
                 </p>
@@ -1200,11 +1200,11 @@ function StatCard({ icon: Icon, label, value, color }) {
 
 function HeroMetric({ label, value }) {
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+    <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 backdrop-blur-sm">
       <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-teal-50/70">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-bold text-white">{value ?? "-"}</p>
+      <p className="mt-1.5 text-xl font-bold text-white">{value ?? "-"}</p>
     </div>
   );
 }
