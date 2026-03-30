@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import NeedEditorModal from "../components/NeedEditorModal";
 import TrustBadge from "../components/TrustBadge";
 import useOnlineStatus from "../hooks/useOnlineStatus";
 import {
@@ -12,7 +13,10 @@ import {
   ChevronUp,
   FileText,
   Flag,
+  Package,
+  Pencil,
   ShieldCheck,
+  Trash2,
   Users,
   XCircle,
 } from "lucide-react";
@@ -136,6 +140,12 @@ export default function AdminDashboard() {
   const [suspendTarget, setSuspendTarget] = useState(null);
   const [suspending, setSuspending] = useState(false);
   const [suspendResult, setSuspendResult] = useState(null);
+  const [expandedNgoId, setExpandedNgoId] = useState(null);
+  const [ngoNeedsById, setNgoNeedsById] = useState({});
+  const [loadingNeedsNgoId, setLoadingNeedsNgoId] = useState(null);
+  const [editingNeed, setEditingNeed] = useState(null);
+  const [editingNeedNgoId, setEditingNeedNgoId] = useState(null);
+  const [savingNeed, setSavingNeed] = useState(false);
   const online = useOnlineStatus();
 
   const groupedReports = useMemo(() => groupReportsByNgo(reports), [reports]);
@@ -278,6 +288,81 @@ export default function AdminDashboard() {
     setSuspendTarget(null);
     setSuspendResult(null);
     setSuspending(false);
+  };
+
+  const loadNgoNeeds = async (ngoId) => {
+    setLoadingNeedsNgoId(ngoId);
+
+    try {
+      const response = await api.get(`/api/admin/ngos/${ngoId}/needs`);
+      setNgoNeedsById((current) => ({
+        ...current,
+        [ngoId]: Array.isArray(response.data) ? response.data : [],
+      }));
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to load NGO needs.");
+    } finally {
+      setLoadingNeedsNgoId(null);
+    }
+  };
+
+  const toggleNgoNeeds = async (ngoId) => {
+    if (expandedNgoId === ngoId) {
+      setExpandedNgoId(null);
+      return;
+    }
+
+    setExpandedNgoId(ngoId);
+
+    if (!ngoNeedsById[ngoId]) {
+      await loadNgoNeeds(ngoId);
+    }
+  };
+
+  const openNeedEditor = (ngoId, need) => {
+    setEditingNeed(need);
+    setEditingNeedNgoId(ngoId);
+  };
+
+  const closeNeedEditor = () => {
+    setEditingNeed(null);
+    setEditingNeedNgoId(null);
+    setSavingNeed(false);
+  };
+
+  const handleSaveNeed = async (payload) => {
+    if (!editingNeed || !editingNeedNgoId || !online) {
+      if (!online) {
+        alert("You are offline. Reconnect before updating needs.");
+      }
+      return;
+    }
+
+    setSavingNeed(true);
+
+    try {
+      await api.put(`/api/admin/needs/${editingNeed.id}`, payload);
+      await loadNgoNeeds(editingNeedNgoId);
+      closeNeedEditor();
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to update need.");
+      setSavingNeed(false);
+    }
+  };
+
+  const handleDeleteNeed = async (ngoId, needId) => {
+    if (!online) {
+      alert("You are offline. Reconnect before deleting needs.");
+      return;
+    }
+    if (!window.confirm("Delete this need?")) return;
+
+    try {
+      await api.delete(`/api/admin/needs/${needId}`);
+      await loadNgoNeeds(ngoId);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to delete need.");
+    }
   };
 
   const tabCounts = {
@@ -520,9 +605,8 @@ export default function AdminDashboard() {
             <section className="space-y-4">
               <div className="glass rounded-2xl p-4">
                 <p className="text-sm text-slate-600">
-                  Need-level admin overrides are ready at the API level, but this screen
-                  cannot safely expose them until the backend confirms a per-NGO needs read
-                  endpoint.
+                  Per-NGO need inspection now uses the dedicated admin read endpoint, and
+                  supported override actions use the existing admin need update and delete routes.
                 </p>
               </div>
 
@@ -592,11 +676,15 @@ export default function AdminDashboard() {
 
                       <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
                         <button
-                          type="button"
-                          disabled
-                          className="bg-slate-100 border border-slate-200 text-slate-400 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 cursor-not-allowed"
+                          onClick={() => toggleNgoNeeds(ngo.id)}
+                          className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center justify-center gap-2"
                         >
-                          Need Overrides Pending Read API
+                          {expandedNgoId === ngo.id ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                          {expandedNgoId === ngo.id ? "Hide Needs" : "View Needs"}
                         </button>
                         <button
                           type="button"
@@ -617,6 +705,73 @@ export default function AdminDashboard() {
                     </article>
                   );
                 })
+              )}
+
+              {expandedNgoId && (
+                <section className="glass rounded-2xl p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-xl font-semibold text-slate-900">NGO Needs</h3>
+                      <p className="text-sm text-slate-600 mt-1">
+                        Review and moderate the selected NGO&apos;s active and historical needs.
+                      </p>
+                    </div>
+                  </div>
+
+                  {loadingNeedsNgoId === expandedNgoId ? (
+                    <div className="flex items-center justify-center py-10">
+                      <div className="h-8 w-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : (ngoNeedsById[expandedNgoId] || []).length === 0 ? (
+                    <div className="text-center py-10">
+                      <Package className="mx-auto h-12 w-12 text-slate-300" />
+                      <p className="mt-3 text-slate-500">No needs available for this NGO.</p>
+                    </div>
+                  ) : (
+                    <div className="mt-6 space-y-4">
+                      {(ngoNeedsById[expandedNgoId] || []).map((need) => (
+                        <article
+                          key={need.id}
+                          className="glass-subtle rounded-2xl p-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+                        >
+                          <div>
+                            <h4 className="text-lg font-semibold text-slate-900">
+                              {need.itemName}
+                            </h4>
+                            <p className="text-sm text-slate-600 mt-1">
+                              {titleCase(need.category)} · {need.quantityPledged}/{need.quantityRequired} pledged
+                            </p>
+                            <p className="text-sm text-slate-500 mt-1">
+                              {need.quantityRemaining} remaining · {titleCase(need.status)}
+                            </p>
+                            {need.description && (
+                              <p className="text-sm text-slate-500 mt-2">{need.description}</p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-3 sm:flex-row">
+                            <button
+                              onClick={() => openNeedEditor(expandedNgoId, need)}
+                              disabled={!online}
+                              className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              {online ? "Edit Need" : "Offline"}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteNeed(expandedNgoId, need.id)}
+                              disabled={!online}
+                              className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {online ? "Delete Need" : "Offline"}
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </section>
               )}
             </section>
           )}
@@ -741,6 +896,15 @@ export default function AdminDashboard() {
               </button>
             </div>
           </div>
+        )}
+
+        {editingNeed && (
+          <NeedEditorModal
+            initialData={editingNeed}
+            onClose={closeNeedEditor}
+            onSave={handleSaveNeed}
+            saving={savingNeed}
+          />
         )}
       </div>
     </>

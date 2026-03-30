@@ -28,6 +28,7 @@ export default function NgoDashboard() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(() => normalizeNgoProfile());
   const [needs, setNeeds] = useState([]);
+  const [incomingPledges, setIncomingPledges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNeedModal, setShowNeedModal] = useState(false);
   const [editingNeed, setEditingNeed] = useState(null);
@@ -40,9 +41,10 @@ export default function NgoDashboard() {
     setError(null);
 
     try {
-      const [profileRes, needsRes] = await Promise.all([
+      const [profileRes, needsRes, pledgesRes] = await Promise.all([
         api.get("/api/ngo/my/profile"),
         api.get("/api/ngo/my/needs"),
+        api.get("/api/ngo/my/pledges"),
       ]);
 
       const normalizedProfile = normalizeNgoProfile(profileRes.data);
@@ -50,6 +52,7 @@ export default function NgoDashboard() {
 
       setProfile(normalizedProfile);
       setNeeds(Array.isArray(needsRes.data) ? needsRes.data : []);
+      setIncomingPledges(Array.isArray(pledgesRes.data) ? pledgesRes.data : []);
 
       if (!completion.isComplete) {
         navigate("/ngo/complete-profile", { replace: true });
@@ -368,10 +371,48 @@ export default function NgoDashboard() {
                 Incoming Pledges
               </h2>
               <p className="text-sm text-slate-600 mt-2">
-                This section is intentionally blocked until the backend confirms
-                `GET /api/ngo/my/pledges` and its response shape. The dependency
-                is tracked in issue #16.
+                Uses the new incoming-pledges endpoint so NGOs can monitor active
+                donor commitments tied to their needs.
               </p>
+
+              {incomingPledges.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="mx-auto h-12 w-12 text-slate-300" />
+                  <p className="mt-3 text-slate-500">No incoming pledges yet</p>
+                </div>
+              ) : (
+                <div className="mt-6 space-y-4">
+                  {incomingPledges.map((pledge) => (
+                    <article
+                      key={pledge.pledgeId}
+                      className="glass-subtle rounded-2xl p-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                    >
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-900">
+                          {pledge.itemName}
+                        </h3>
+                        <p className="text-sm text-slate-600 mt-1">
+                          {pledge.quantity} pledged by {pledge.donorName}
+                        </p>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {pledge.donorEmail}
+                        </p>
+                      </div>
+
+                      <div className="text-left sm:text-right">
+                        <p className="text-sm font-medium text-slate-900">
+                          {pledge.status || "ACTIVE"}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {pledge.createdAt
+                            ? new Date(pledge.createdAt).toLocaleString()
+                            : "Created date unavailable"}
+                        </p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </section>
           </div>
         </main>

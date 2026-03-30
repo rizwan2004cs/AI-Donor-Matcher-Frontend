@@ -29,7 +29,8 @@ export default function DeliveryView() {
   const [eta, setEta] = useState(null);
   const [distanceKm, setDistanceKm] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!initialPledge);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     if (!location.state) return;
@@ -37,8 +38,52 @@ export default function DeliveryView() {
   }, [location.state, pledgeId]);
 
   useEffect(() => {
+    if (pledge || !online) {
+      if (!pledge && !online) {
+        setLoadError(
+          "You are offline and no cached delivery details were found for this pledge."
+        );
+        setLoading(false);
+      }
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPledge = async () => {
+      setLoading(true);
+      setLoadError(null);
+
+      try {
+        const response = await api.get(`/api/pledges/${pledgeId}`);
+        if (!cancelled) {
+          setPledge(response.data);
+          saveDeliverySession(pledgeId, response.data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(
+            err.response?.data?.error ||
+              err.response?.data?.message ||
+              "Failed to load delivery details."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadPledge();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [online, pledge, pledgeId]);
+
+  useEffect(() => {
     if (!pledge) {
-      setLoading(false);
       return;
     }
 
@@ -150,9 +195,7 @@ export default function DeliveryView() {
           <div className="glass rounded-2xl p-8 w-full max-w-lg space-y-4">
             <h1 className="text-xl font-bold text-slate-900">Delivery Details Unavailable</h1>
             <p className="text-sm text-slate-600">
-              This page can currently restore only from pledge data saved during a
-              successful pledge submission. The backend has not yet confirmed a
-              `GET /api/pledges/{'{id}'}` read endpoint for refresh-safe loading.
+              {loadError || "This pledge could not be loaded."}
             </p>
             <button
               onClick={() => navigate("/donor/dashboard")}
