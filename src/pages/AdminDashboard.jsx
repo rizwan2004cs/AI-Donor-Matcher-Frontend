@@ -1,47 +1,167 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
+import TrustBadge from "../components/TrustBadge";
 import useOnlineStatus from "../hooks/useOnlineStatus";
 import {
-  Users,
-  ShieldCheck,
   AlertTriangle,
-  CheckCircle,
-  XCircle,
   Ban,
-  RotateCcw,
+  Building2,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
   FileText,
   Flag,
+  ShieldCheck,
+  Users,
+  XCircle,
 } from "lucide-react";
+
+const TABS = [
+  { id: "verify", label: "Verifications" },
+  { id: "reports", label: "Reports" },
+  { id: "ngos", label: "NGO Management" },
+];
+
+const STAT_CARDS = [
+  { key: "totalDonors", label: "Total Donors", icon: Users, color: "blue" },
+  { key: "approvedNgos", label: "Approved NGOs", icon: ShieldCheck, color: "green" },
+  { key: "pendingNgos", label: "Pending NGOs", icon: AlertTriangle, color: "yellow" },
+  { key: "totalReports", label: "Open Reports", icon: Flag, color: "red" },
+];
+
+function titleCase(value) {
+  if (!value) return "";
+
+  return value
+    .toString()
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function getNgoName(ngo) {
+  return ngo?.name || ngo?.organizationName || ngo?.user?.fullName || "Unnamed NGO";
+}
+
+function getNgoEmail(ngo) {
+  return ngo?.contactEmail || ngo?.email || ngo?.user?.email || "No email provided";
+}
+
+function normalizeNgo(ngo) {
+  return {
+    id: ngo?.id,
+    name: getNgoName(ngo),
+    email: getNgoEmail(ngo),
+    address: ngo?.address || "Address not provided",
+    photoUrl: ngo?.photoUrl || ngo?.profilePhotoUrl || "",
+    documentUrl: ngo?.documentUrl || ngo?.verificationDocUrl || "",
+    status: ngo?.status || (ngo?.suspended ? "SUSPENDED" : "APPROVED"),
+    categoryOfWork: ngo?.categoryOfWork || "",
+    trustScore: typeof ngo?.trustScore === "number" ? ngo.trustScore : null,
+    trustLabel: titleCase(ngo?.trustTier || ngo?.trustLabel || "NEW"),
+    activeNeedsCount:
+      typeof ngo?.activeNeedsCount === "number" ? ngo.activeNeedsCount : null,
+    rejectionReason: ngo?.rejectionReason || "",
+    verifiedAt: ngo?.verifiedAt || "",
+  };
+}
+
+function groupReportsByNgo(reports) {
+  const groups = new Map();
+
+  (Array.isArray(reports) ? reports : []).forEach((report) => {
+    const ngo = report?.ngo || {};
+    const ngoId = ngo.id ?? report?.ngoId;
+
+    if (!ngoId) return;
+
+    if (!groups.has(ngoId)) {
+      groups.set(ngoId, {
+        ngoId,
+        ngoName: getNgoName(ngo) || report?.ngoName || "Unnamed NGO",
+        reportCount: 0,
+        status: ngo?.status || null,
+        items: [],
+      });
+    }
+
+    const group = groups.get(ngoId);
+    group.reportCount += 1;
+    group.items.push({
+      id: report?.id,
+      reason: report?.reason || "No reason provided",
+      reporterEmail: report?.reporter?.email || "Unknown reporter",
+      reportedAt: report?.reportedAt || null,
+    });
+  });
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      items: group.items.sort((a, b) => {
+        const left = a.reportedAt ? new Date(a.reportedAt).getTime() : 0;
+        const right = b.reportedAt ? new Date(b.reportedAt).getTime() : 0;
+        return right - left;
+      }),
+    }))
+    .sort((a, b) => b.reportCount - a.reportCount);
+}
+
+function formatDateTime(value) {
+  if (!value) return "Unknown date";
+
+  return new Date(value).toLocaleString();
+}
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [reports, setReports] = useState([]);
   const [ngos, setNgos] = useState([]);
-  const [tab, setTab] = useState("verify"); // 'verify' | 'reports' | 'ngos'
+  const [tab, setTab] = useState("verify");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [expandedReportNgoId, setExpandedReportNgoId] = useState(null);
+  const [suspendTarget, setSuspendTarget] = useState(null);
+  const [suspending, setSuspending] = useState(false);
+  const [suspendResult, setSuspendResult] = useState(null);
   const online = useOnlineStatus();
+
+  const groupedReports = useMemo(() => groupReportsByNgo(reports), [reports]);
 
   useEffect(() => {
     const fetchAll = async () => {
+      setLoading(true);
+      setError(null);
+
       try {
-        const [statsRes, verifyRes, reportsRes, ngosRes] = await Promise.all([
+        const [statsRes, pendingRes, reportsRes, ngosRes] = await Promise.all([
           api.get("/api/admin/stats"),
-          api.get("/api/admin/verifications/pending"),
+          api.get("/api/admin/ngos/pending"),
           api.get("/api/admin/reports"),
           api.get("/api/admin/ngos"),
         ]);
-        setStats(statsRes.data);
-        setPendingVerifications(verifyRes.data);
-        setReports(reportsRes.data);
-        setNgos(ngosRes.data);
+
+        setStats(statsRes.data || {});
+        setPendingVerifications(
+          (Array.isArray(pendingRes.data) ? pendingRes.data : []).map(normalizeNgo)
+        );
+        setReports(Array.isArray(reportsRes.data) ? reportsRes.data : []);
+        setNgos((Array.isArray(ngosRes.data) ? ngosRes.data : []).map(normalizeNgo));
       } catch (err) {
         console.error("Failed to load admin data", err);
+        setError(
+          err.response?.data?.error ||
+            err.response?.data?.message ||
+            "Failed to load admin dashboard."
+        );
       } finally {
         setLoading(false);
       }
     };
+
     fetchAll();
   }, []);
 
@@ -50,12 +170,23 @@ export default function AdminDashboard() {
       alert("You are offline. Reconnect before approving NGOs.");
       return;
     }
+
     try {
-      await api.put(`/api/admin/verify/${ngoId}/approve`);
-      setPendingVerifications((prev) => prev.filter((v) => v.id !== ngoId));
-      setStats((s) => s && { ...s, pendingVerifications: s.pendingVerifications - 1 });
-    } catch {
-      alert("Failed to approve");
+      await api.post(`/api/admin/ngos/${ngoId}/approve`);
+      setPendingVerifications((current) =>
+        current.filter((ngo) => ngo.id !== ngoId)
+      );
+      setStats((current) =>
+        current
+          ? {
+              ...current,
+              pendingNgos: Math.max(Number(current.pendingNgos || 0) - 1, 0),
+              approvedNgos: Number(current.approvedNgos || 0) + 1,
+            }
+          : current
+      );
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to approve NGO.");
     }
   };
 
@@ -64,317 +195,485 @@ export default function AdminDashboard() {
       alert("You are offline. Reconnect before rejecting NGOs.");
       return;
     }
-    const reason = prompt("Rejection reason:");
+
+    const reason = window.prompt("Enter a rejection reason for this NGO:");
     if (!reason) return;
-    try {
-      await api.put(`/api/admin/verify/${ngoId}/reject`, { reason });
-      setPendingVerifications((prev) => prev.filter((v) => v.id !== ngoId));
-    } catch {
-      alert("Failed to reject");
-    }
-  };
 
-  const dismissReport = async (reportId) => {
-    if (!online) {
-      alert("You are offline. Reconnect before dismissing reports.");
-      return;
-    }
     try {
-      await api.put(`/api/admin/reports/${reportId}/dismiss`);
-      setReports((prev) => prev.filter((r) => r.id !== reportId));
-    } catch {
-      alert("Failed to dismiss report");
-    }
-  };
-
-  const suspendNgo = async (ngoId) => {
-    if (!online) {
-      alert("You are offline. Reconnect before suspending NGOs.");
-      return;
-    }
-    if (!window.confirm("Suspend this NGO?")) return;
-    try {
-      await api.put(`/api/admin/ngos/${ngoId}/suspend`);
-      setNgos((prev) =>
-        prev.map((n) => (n.id === ngoId ? { ...n, suspended: true } : n))
+      await api.post(`/api/admin/ngos/${ngoId}/reject`, { reason });
+      setPendingVerifications((current) =>
+        current.filter((ngo) => ngo.id !== ngoId)
       );
-    } catch {
-      alert("Failed to suspend");
+      setStats((current) =>
+        current
+          ? {
+              ...current,
+              pendingNgos: Math.max(Number(current.pendingNgos || 0) - 1, 0),
+            }
+          : current
+      );
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to reject NGO.");
     }
   };
 
-  const reinstateNgo = async (ngoId) => {
-    if (!online) {
-      alert("You are offline. Reconnect before reinstating NGOs.");
+  const openSuspendModal = (ngo) => {
+    setSuspendResult(null);
+    setSuspendTarget(ngo);
+  };
+
+  const confirmSuspend = async () => {
+    if (!suspendTarget || !online) {
+      if (!online) {
+        alert("You are offline. Reconnect before suspending NGOs.");
+      }
       return;
     }
+
+    setSuspending(true);
+
     try {
-      await api.put(`/api/admin/ngos/${ngoId}/reinstate`);
-      setNgos((prev) =>
-        prev.map((n) => (n.id === ngoId ? { ...n, suspended: false } : n))
+      const response = await api.post(`/api/admin/ngos/${suspendTarget.id}/suspend`);
+      setReports((current) =>
+        current.filter((report) => (report?.ngo?.id ?? report?.ngoId) !== suspendTarget.id)
       );
-    } catch {
-      alert("Failed to reinstate");
+      setNgos((current) => current.filter((ngo) => ngo.id !== suspendTarget.id));
+      setSuspendTarget(null);
+      setSuspendResult({
+        ngoName: suspendTarget.name,
+        ...response.data,
+      });
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to suspend NGO.");
+    } finally {
+      setSuspending(false);
     }
+  };
+
+  const closeSuspendFlow = () => {
+    setSuspendTarget(null);
+    setSuspendResult(null);
+    setSuspending(false);
+  };
+
+  const tabCounts = {
+    verify: pendingVerifications.length,
+    reports: groupedReports.length,
+    ngos: ngos.length,
   };
 
   return (
     <>
       <Navbar />
       <div className="min-h-screen bg-teal-50">
-        {/* Header */}
         <div className="glass-nav text-white px-6 py-6">
           <h1 className="text-xl font-bold">Admin Dashboard</h1>
           <p className="text-teal-200 text-sm mt-1">
-            Platform management & moderation
+            Moderate reports, review pending NGOs, and manage supported admin actions.
           </p>
         </div>
 
-        {/* Stats strip */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 max-w-4xl mx-auto">
-            <StatCard
-              icon={Users}
-              label="Total Donors"
-              value={stats.totalDonors}
-              color="blue"
-            />
-            <StatCard
-              icon={ShieldCheck}
-              label="Verified NGOs"
-              value={stats.verifiedNgos}
-              color="green"
-            />
-            <StatCard
-              icon={AlertTriangle}
-              label="Pending Verif."
-              value={stats.pendingVerifications}
-              color="yellow"
-            />
-            <StatCard
-              icon={Flag}
-              label="Open Reports"
-              value={stats.openReports}
-              color="red"
-            />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 max-w-5xl mx-auto">
+            {STAT_CARDS.map(({ key, label, icon, color }) => (
+              <StatCard
+                key={key}
+                icon={icon}
+                label={label}
+                value={stats[key]}
+                color={color}
+              />
+            ))}
           </div>
         )}
 
-        {/* Tab bar */}
-        <div className="flex border-b glass-subtle max-w-4xl mx-auto rounded-t-xl">
-          {[
-            { id: "verify", label: "Verifications", count: pendingVerifications.length },
-            { id: "reports", label: "Reports", count: reports.length },
-            { id: "ngos", label: "NGO Management", count: ngos.length },
-          ].map((t) => (
+        <div className="flex border-b glass-subtle max-w-5xl mx-auto rounded-t-2xl overflow-hidden">
+          {TABS.map((item) => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={item.id}
+              onClick={() => setTab(item.id)}
               className={`flex-1 py-3 text-sm font-medium text-center border-b-2 transition-all duration-200 ${
-                tab === t.id
-                  ? "border-teal-600 text-teal-600"
+                tab === item.id
+                  ? "border-teal-600 text-teal-700"
                   : "border-transparent text-slate-500 hover:text-slate-700"
               }`}
             >
-              {t.label} ({t.count})
+              {item.label} ({tabCounts[item.id]})
             </button>
           ))}
         </div>
 
-        <div className="max-w-4xl mx-auto p-4 space-y-3">
+        <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
           {loading && (
-            <p className="text-center text-slate-400 py-8">Loading...</p>
+            <div className="flex items-center justify-center py-12">
+              <div className="h-8 w-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+            </div>
           )}
 
-          {/* Verification Queue */}
+          {!loading && error && (
+            <div className="glass rounded-2xl p-4 text-sm text-red-500">{error}</div>
+          )}
+
           {!loading && tab === "verify" && (
-            <>
-              {pendingVerifications.length === 0 && (
-                <p className="text-center text-slate-400 py-8">
-                  No pending verifications.
-                </p>
-              )}
-              {pendingVerifications.map((v) => (
-                <div
-                  key={v.id}
-                  className="glass rounded-2xl p-4 flex items-start justify-between"
-                >
-                  <div className="flex items-start gap-3">
-                    {v.profilePhotoUrl ? (
-                      <img
-                        src={v.profilePhotoUrl}
-                        alt=""
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                        <Users className="w-5 h-5" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-medium text-sm">
-                        {v.organizationName}
-                      </p>
-                      <p className="text-xs text-slate-500">{v.email}</p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {v.address}
-                      </p>
-                      {v.verificationDocUrl && (
-                        <a
-                          href={v.verificationDocUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-teal-600 underline flex items-center gap-1 mt-1"
-                        >
-                          <FileText className="w-3 h-3" /> View Document
-                        </a>
+            <section className="space-y-4">
+              {pendingVerifications.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="mx-auto h-12 w-12 text-slate-300" />
+                  <p className="mt-3 text-slate-500">No pending verifications.</p>
+                </div>
+              ) : (
+                pendingVerifications.map((ngo) => (
+                  <article
+                    key={ngo.id}
+                    className="glass rounded-2xl p-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+                  >
+                    <div className="flex items-start gap-4">
+                      {ngo.photoUrl ? (
+                        <img
+                          src={ngo.photoUrl}
+                          alt={ngo.name}
+                          className="h-14 w-14 rounded-2xl object-cover"
+                        />
+                      ) : (
+                        <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                          <Building2 className="h-6 w-6" />
+                        </div>
                       )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => approveNgo(v.id)}
-                      disabled={!online}
-                      className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-emerald-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <CheckCircle className="w-3 h-3" /> {online ? "Approve" : "Offline"}
-                    </button>
-                    <button
-                      onClick={() => rejectNgo(v.id)}
-                      disabled={!online}
-                      className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <XCircle className="w-3 h-3" /> {online ? "Reject" : "Offline"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
 
-          {/* Reports Queue */}
-          {!loading && tab === "reports" && (
-            <>
-              {reports.length === 0 && (
-                <p className="text-center text-slate-400 py-8">
-                  No open reports.
-                </p>
-              )}
-              {reports.map((r) => (
-                <div
-                  key={r.id}
-                  className={`glass rounded-2xl p-4 ${
-                    r.reportCount >= 3 ? "border-l-4 border-red-500" : ""
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium text-sm flex items-center gap-2">
-                        {r.ngoName}
-                        {r.reportCount >= 3 && (
-                          <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-                            ⚠ {r.reportCount} reports
-                          </span>
+                      <div>
+                        <p className="text-xl font-semibold text-slate-900">{ngo.name}</p>
+                        <p className="text-sm text-slate-600 mt-1">{ngo.email}</p>
+                        <p className="text-sm text-slate-500 mt-1">{ngo.address}</p>
+
+                        {ngo.documentUrl && (
+                          <a
+                            href={ngo.documentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-flex items-center gap-2 text-sm text-teal-700 hover:text-teal-800 transition-all duration-200"
+                          >
+                            <FileText className="h-4 w-4" />
+                            View uploaded document
+                          </a>
                         )}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Reason: {r.reason}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Reported by: {r.reporterEmail} •{" "}
-                        {new Date(r.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => suspendNgo(r.ngoId)}
-                        disabled={!online}
-                        className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Ban className="w-3 h-3" /> {online ? "Suspend" : "Offline"}
-                      </button>
-                      <button
-                        onClick={() => dismissReport(r.id)}
-                        disabled={!online}
-                        className="text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-xl hover:bg-white/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {online ? "Dismiss" : "Offline"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-
-          {/* NGO Management */}
-          {!loading && tab === "ngos" && (
-            <>
-              {ngos.length === 0 && (
-                <p className="text-center text-slate-400 py-8">
-                  No NGOs registered yet.
-                </p>
-              )}
-              {ngos.map((n) => (
-                <div
-                  key={n.id}
-                  className="glass rounded-2xl p-4 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    {n.profilePhotoUrl ? (
-                      <img
-                        src={n.profilePhotoUrl}
-                        alt=""
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs">
-                        NGO
                       </div>
-                    )}
-                    <div>
-                      <p className="font-medium text-sm">
-                        {n.organizationName}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {n.email} •{" "}
-                        <span
-                          className={
-                            n.verified ? "text-green-600" : "text-yellow-600"
-                          }
-                        >
-                          {n.verified ? "Verified" : "Unverified"}
-                        </span>
-                        {n.suspended && (
-                          <span className="text-red-500 ml-1">• Suspended</span>
-                        )}
-                      </p>
                     </div>
-                  </div>
-                  <div>
-                    {n.suspended ? (
+
+                    <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
                       <button
-                        onClick={() => reinstateNgo(n.id)}
+                        onClick={() => approveNgo(ngo.id)}
                         disabled={!online}
-                        className="text-xs border border-emerald-400 text-emerald-600 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-emerald-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                       >
-                        <RotateCcw className="w-3 h-3" /> {online ? "Reinstate" : "Offline"}
+                        <CheckCircle className="h-4 w-4" />
+                        {online ? "Approve" : "Offline"}
                       </button>
-                    ) : (
                       <button
-                        onClick={() => suspendNgo(n.id)}
+                        onClick={() => rejectNgo(ngo.id)}
                         disabled={!online}
-                        className="text-xs border border-red-300 text-red-500 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                       >
-                        <Ban className="w-3 h-3" /> {online ? "Suspend" : "Offline"}
+                        <XCircle className="h-4 w-4" />
+                        {online ? "Reject" : "Offline"}
                       </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </>
+                    </div>
+                  </article>
+                ))
+              )}
+            </section>
           )}
-        </div>
+
+          {!loading && tab === "reports" && (
+            <section className="space-y-4">
+              <div className="glass rounded-2xl p-4">
+                <p className="text-sm text-slate-600">
+                  Report dismissal is still blocked on a backend-confirmed endpoint, so
+                  this view supports report review and NGO suspension only.
+                </p>
+              </div>
+
+              {groupedReports.length === 0 ? (
+                <div className="text-center py-12">
+                  <Flag className="mx-auto h-12 w-12 text-slate-300" />
+                  <p className="mt-3 text-slate-500">No reported NGOs.</p>
+                </div>
+              ) : (
+                groupedReports.map((group) => {
+                  const expanded = expandedReportNgoId === group.ngoId;
+
+                  return (
+                    <article key={group.ngoId} className="glass rounded-2xl overflow-hidden">
+                      <div className="p-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-xl font-semibold text-slate-900">
+                              {group.ngoName}
+                            </h2>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                              {group.reportCount} report{group.reportCount === 1 ? "" : "s"}
+                            </span>
+                            {group.reportCount >= 3 && (
+                              <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600">
+                                High priority
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-600 mt-2">
+                            Review the submitted reasons below, then suspend the NGO if the
+                            reports warrant moderation action.
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+                          <button
+                            onClick={() =>
+                              setExpandedReportNgoId((current) =>
+                                current === group.ngoId ? null : group.ngoId
+                              )
+                            }
+                            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center justify-center gap-2"
+                          >
+                            {expanded ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                            {expanded ? "Hide Reports" : "View Reports"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled
+                            className="bg-slate-100 border border-slate-200 text-slate-400 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 cursor-not-allowed"
+                          >
+                            Dismiss Unavailable
+                          </button>
+                          <button
+                            onClick={() =>
+                              openSuspendModal({ id: group.ngoId, name: group.ngoName })
+                            }
+                            disabled={!online}
+                            className="bg-red-500 text-white hover:bg-red-600 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                          >
+                            <Ban className="h-4 w-4" />
+                            {online ? "Suspend NGO" : "Offline"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {expanded && (
+                        <div className="border-t border-slate-200/60 bg-white/40 px-5 py-4 space-y-3">
+                          {group.items.map((item) => (
+                            <div
+                              key={item.id}
+                              className="glass-subtle rounded-2xl px-4 py-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">
+                                  {item.reason}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  Reported by {item.reporterEmail}
+                                </p>
+                              </div>
+                              <p className="text-xs text-slate-400">
+                                {formatDateTime(item.reportedAt)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })
+              )}
+            </section>
+          )}
+
+          {!loading && tab === "ngos" && (
+            <section className="space-y-4">
+              <div className="glass rounded-2xl p-4">
+                <p className="text-sm text-slate-600">
+                  Need-level admin overrides are ready at the API level, but this screen
+                  cannot safely expose them until the backend confirms a per-NGO needs read
+                  endpoint.
+                </p>
+              </div>
+
+              {ngos.length === 0 ? (
+                <div className="text-center py-12">
+                  <Building2 className="mx-auto h-12 w-12 text-slate-300" />
+                  <p className="mt-3 text-slate-500">No NGOs available.</p>
+                </div>
+              ) : (
+                ngos.map((ngo) => {
+                  const isSuspended = ngo.status === "SUSPENDED";
+
+                  return (
+                    <article
+                      key={ngo.id}
+                      className="glass rounded-2xl p-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+                    >
+                      <div className="flex items-start gap-4">
+                        {ngo.photoUrl ? (
+                          <img
+                            src={ngo.photoUrl}
+                            alt={ngo.name}
+                            className="h-14 w-14 rounded-2xl object-cover"
+                          />
+                        ) : (
+                          <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                            <Building2 className="h-6 w-6" />
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-xl font-semibold text-slate-900">
+                              {ngo.name}
+                            </h2>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                isSuspended
+                                  ? "bg-red-100 text-red-600"
+                                  : "bg-emerald-100 text-emerald-700"
+                              }`}
+                            >
+                              {titleCase(ngo.status)}
+                            </span>
+                            {ngo.trustScore !== null && ngo.trustLabel && (
+                              <TrustBadge
+                                score={ngo.trustScore}
+                                label={ngo.trustLabel}
+                              />
+                            )}
+                          </div>
+
+                          <p className="text-sm text-slate-600 mt-2">{ngo.email}</p>
+                          <p className="text-sm text-slate-500 mt-1">{ngo.address}</p>
+
+                          <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
+                            <span>
+                              Active needs count:{" "}
+                              {ngo.activeNeedsCount ?? "Not exposed in current contract"}
+                            </span>
+                            {ngo.categoryOfWork && (
+                              <span>Category: {titleCase(ngo.categoryOfWork)}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+                        <button
+                          type="button"
+                          disabled
+                          className="bg-slate-100 border border-slate-200 text-slate-400 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 cursor-not-allowed"
+                        >
+                          Need Overrides Pending Read API
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSuspended || !online}
+                          onClick={() => openSuspendModal({ id: ngo.id, name: ngo.name })}
+                          className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                        >
+                          <Ban className="h-4 w-4" />
+                          {!online ? "Offline" : isSuspended ? "Already Suspended" : "Suspend"}
+                        </button>
+                        {isSuspended && (
+                          <p className="text-xs text-slate-400 max-w-48">
+                            Reinstate is intentionally hidden until the backend confirms a
+                            supported admin route for it.
+                          </p>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })
+              )}
+            </section>
+          )}
+        </main>
+
+        {suspendTarget && !suspendResult && (
+          <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-8 shadow-lg max-w-md w-full">
+              <div className="flex items-center gap-3 text-red-600">
+                <AlertTriangle className="h-6 w-6" />
+                <h2 className="text-2xl font-semibold text-slate-900">Suspend NGO</h2>
+              </div>
+
+              <p className="text-sm text-slate-600 mt-4">
+                You are about to suspend <span className="font-medium">{suspendTarget.name}</span>.
+              </p>
+
+              <ul className="mt-4 space-y-2 text-sm text-slate-600">
+                <li>Active needs may be closed by the backend.</li>
+                <li>Existing pledge activity may be affected by the cascade.</li>
+                <li>The NGO will be removed from the moderation views after success.</li>
+              </ul>
+
+              <p className="mt-4 text-sm font-medium text-red-600">
+                Use this only when the reported behavior warrants administrative action.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={confirmSuspend}
+                  disabled={suspending || !online}
+                  className="bg-red-500 text-white hover:bg-red-600 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {suspending ? "Suspending..." : online ? "Confirm Suspend" : "Offline"}
+                </button>
+                <button
+                  onClick={closeSuspendFlow}
+                  disabled={suspending}
+                  className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {suspendResult && (
+          <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-8 shadow-lg max-w-md w-full">
+              <div className="flex items-center gap-3 text-emerald-600">
+                <CheckCircle className="h-6 w-6" />
+                <h2 className="text-2xl font-semibold text-slate-900">NGO Suspended</h2>
+              </div>
+
+              <p className="text-sm text-slate-600 mt-4">
+                {suspendResult.ngoName} was suspended successfully.
+              </p>
+
+              {suspendResult.message && (
+                <p className="text-sm text-slate-500 mt-2">{suspendResult.message}</p>
+              )}
+
+              <div className="mt-4 space-y-2 text-sm text-slate-600">
+                {typeof suspendResult.needsClosed === "number" && (
+                  <p>{suspendResult.needsClosed} needs closed</p>
+                )}
+                {typeof suspendResult.pledgesCancelled === "number" && (
+                  <p>{suspendResult.pledgesCancelled} pledges cancelled</p>
+                )}
+                {typeof suspendResult.donorsNotified === "number" && (
+                  <p>{suspendResult.donorsNotified} donors notified</p>
+                )}
+              </div>
+
+              <button
+                onClick={closeSuspendFlow}
+                className="mt-6 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -387,10 +686,13 @@ function StatCard({ icon: Icon, label, value, color }) {
     yellow: "bg-amber-50 text-amber-700",
     red: "bg-red-50 text-red-700",
   };
+
   return (
-    <div className={`rounded-2xl p-4 backdrop-blur-sm ${colorClasses[color] || colorClasses.blue}`}>
+    <div
+      className={`rounded-2xl p-4 backdrop-blur-sm ${colorClasses[color] || colorClasses.blue}`}
+    >
       <Icon className="w-5 h-5 mb-1 opacity-70" />
-      <p className="text-2xl font-bold">{value ?? "–"}</p>
+      <p className="text-2xl font-bold">{value ?? "-"}</p>
       <p className="text-xs opacity-70">{label}</p>
     </div>
   );
