@@ -4,7 +4,10 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import TrustBadge from "../components/TrustBadge";
-import { createCategoryIcon } from "../components/CategoryPin";
+import {
+  createCategoryIcon,
+  createCurrentLocationIcon,
+} from "../components/CategoryPin";
 import { CATEGORY_OPTIONS, CATEGORY_COLORS } from "../utils/categoryColors";
 import {
   ArrowRight,
@@ -16,13 +19,13 @@ import {
 
 const DEFAULT_CENTER = [13.0827, 80.2707]; // Chennai fallback
 
-function RecenterOnChange({ center }) {
+function RecenterOnChange({ center, zoom = 12 }) {
   const map = useMap();
 
   useEffect(() => {
     if (!center) return;
-    map.setView(center);
-  }, [map, center]);
+    map.setView(center, zoom, { animate: true });
+  }, [map, center, zoom]);
 
   return null;
 }
@@ -32,20 +35,27 @@ export default function DiscoveryMap() {
   const [ngos, setNgos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [center, setCenter] = useState(DEFAULT_CENTER);
+  const [hasUserLocation, setHasUserLocation] = useState(false);
   const [locationResolved, setLocationResolved] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [radius, setRadius] = useState(5);
   const [noLocal, setNoLocal] = useState(false);
   const [showExpandedBanner, setShowExpandedBanner] = useState(false);
+  const [focusedNgoId, setFocusedNgoId] = useState(null);
+  const [focusedCenter, setFocusedCenter] = useState(null);
 
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
       (pos) => {
         setCenter([pos.coords.latitude, pos.coords.longitude]);
+        setHasUserLocation(true);
         setLocationResolved(true);
       },
-      () => setLocationResolved(true)
+      () => {
+        setHasUserLocation(false);
+        setLocationResolved(true);
+      }
     );
   }, []);
 
@@ -143,11 +153,63 @@ export default function DiscoveryMap() {
     });
   }, [isUrgent, ngos]);
 
+  const mapNgos = useMemo(() => {
+    const grouped = new Map();
+
+    ngos.forEach((ngo) => {
+      const key = `${ngo.lat},${ngo.lng}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key).push(ngo);
+    });
+
+    return Array.from(grouped.values()).flatMap((group) => {
+      if (group.length === 1) {
+        return group.map((ngo) => ({
+          ...ngo,
+          markerLat: ngo.lat,
+          markerLng: ngo.lng,
+        }));
+      }
+
+      const radiusOffset = 0.0012;
+      return group.map((ngo, index) => {
+        if (index === 0) {
+          return {
+            ...ngo,
+            markerLat: ngo.lat,
+            markerLng: ngo.lng,
+          };
+        }
+
+        const spreadIndex = index - 1;
+        const angle = (index / group.length) * Math.PI * 2;
+        return {
+          ...ngo,
+          markerLat: ngo.lat + Math.sin(angle) * radiusOffset * (spreadIndex % 2 === 0 ? 1 : 0.72),
+          markerLng: ngo.lng + Math.cos(angle) * radiusOffset * (spreadIndex % 2 === 0 ? 1 : 0.72),
+        };
+      });
+    });
+  }, [ngos]);
+
   const handleResetFilters = () => {
     setSearchInput("");
     setSearch("");
     setCategory("");
     setRadius(5);
+    setFocusedNgoId(null);
+    setFocusedCenter(null);
+  };
+
+  const handleFocusNgo = (ngo) => {
+    setFocusedNgoId(ngo.id);
+    setFocusedCenter([ngo.markerLat ?? ngo.lat, ngo.markerLng ?? ngo.lng]);
+  };
+
+  const handleViewProfile = (ngoId) => {
+    navigate(`/ngo/${ngoId}`);
   };
 
   return (
@@ -289,12 +351,27 @@ export default function DiscoveryMap() {
             <div className="grid h-[calc(100vh-190px)] min-h-[620px] grid-rows-[minmax(460px,1fr)_280px] gap-0 lg:grid-cols-[minmax(0,1.7fr)_360px] lg:grid-rows-1">
               <div className="min-h-[460px] lg:min-h-0">
                 <MapContainer center={center} zoom={12} className="h-full w-full">
-                  <RecenterOnChange center={center} />
+                  <RecenterOnChange
+                    center={focusedCenter || center}
+                    zoom={focusedCenter ? 15 : 12}
+                  />
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  {ngos.map((ngo) => (
+                  {hasUserLocation && (
+                    <Marker position={center} icon={createCurrentLocationIcon()}>
+                      <Popup>
+                        <div className="w-48">
+                          <p className="text-sm font-bold text-slate-900">Your location</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Nearby NGOs are measured from here.
+                          </p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  )}
+                  {mapNgos.map((ngo) => (
                     <Marker
                       key={ngo.id}
-                      position={[ngo.lat, ngo.lng]}
+                      position={[ngo.markerLat, ngo.markerLng]}
                       icon={createCategoryIcon(ngo.topNeedCategory)}
                     >
                       <Popup>
@@ -313,7 +390,7 @@ export default function DiscoveryMap() {
                           </p>
                           <button
                             type="button"
-                            onClick={() => navigate(`/ngo/${ngo.id}`)}
+                            onClick={() => handleViewProfile(ngo.id)}
                             className="mt-2 w-full rounded-xl bg-teal-600 py-1.5 text-xs text-white transition-all duration-200 hover:bg-teal-700"
                           >
                             View Full Profile
@@ -385,8 +462,10 @@ export default function DiscoveryMap() {
                   sortedNgos.map((ngo) => (
                     <div
                       key={ngo.id}
-                      onClick={() => navigate(`/ngo/${ngo.id}`)}
-                      className="cursor-pointer border-b border-white/20 px-5 py-3 transition-all duration-200 hover:bg-white/50"
+                      onClick={() => handleFocusNgo(ngo)}
+                      className={`cursor-pointer border-b border-white/20 px-5 py-3 transition-all duration-200 hover:bg-white/50 ${
+                        focusedNgoId === ngo.id ? "bg-teal-50/80" : ""
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -421,6 +500,30 @@ export default function DiscoveryMap() {
                         />
                         {ngo.topNeedItem} ({ngo.topNeedQuantityRemaining} left)
                       </p>
+
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleFocusNgo(ngo);
+                          }}
+                          className="text-xs font-medium text-teal-700 transition-all duration-200 hover:text-teal-800"
+                        >
+                          Show on map
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleViewProfile(ngo.id);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-medium text-white transition-all duration-200 hover:bg-teal-700"
+                        >
+                          View full profile
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
