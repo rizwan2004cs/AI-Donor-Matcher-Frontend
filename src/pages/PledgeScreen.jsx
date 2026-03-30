@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "../utils/categoryColors";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 
 export default function PledgeScreen() {
   const { needId } = useParams();
@@ -12,6 +13,7 @@ export default function PledgeScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const online = useOnlineStatus();
 
   useEffect(() => {
     api
@@ -31,7 +33,7 @@ export default function PledgeScreen() {
   const decrement = () => setQty((q) => Math.max(q - 1, 1));
 
   const onSubmit = async () => {
-    if (!navigator.onLine) {
+    if (!online) {
       alert("You are offline. This action requires an internet connection.");
       return;
     }
@@ -147,10 +149,14 @@ export default function PledgeScreen() {
 
           <button
             onClick={onSubmit}
-            disabled={submitting}
-            className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200 disabled:opacity-50"
+            disabled={submitting || !online}
+            className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {submitting ? "Pledging..." : "Confirm Pledge"}
+            {submitting
+              ? "Pledging..."
+              : online
+                ? "Confirm Pledge"
+                : "Offline"}
           </button>
 
           <p className="text-xs text-slate-400 text-center">

@@ -1,5 +1,11 @@
-const CACHE_NAME = "donor-match-v1";
-const STATIC_ASSETS = ["/", "/index.html"];
+const CACHE_NAME = "donor-match-v2";
+const STATIC_ASSETS = [
+  "/",
+  "/index.html",
+  "/manifest.json",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+];
 
 // Install — cache shell
 self.addEventListener("install", (e) => {
@@ -28,9 +34,26 @@ self.addEventListener("fetch", (e) => {
   // Skip non-GET requests
   if (request.method !== "GET") return;
 
-  // API calls — network only (don't cache dynamic data)
+  if (request.mode === "navigate") {
+    e.respondWith(
+      fetch(request).catch(() => caches.match("/index.html"))
+    );
+    return;
+  }
+
+  // API calls — network-first with stale cache fallback
   if (request.url.includes("/api/")) {
-    e.respondWith(fetch(request).catch(() => caches.match(request)));
+    e.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
     return;
   }
 

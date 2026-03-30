@@ -4,6 +4,7 @@ import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "../utils/categoryColors";
 import { Navigation, X, History, Package } from "lucide-react";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 
 export default function DonorDashboard() {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export default function DonorDashboard() {
   const [activePledges, setActivePledges] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const online = useOnlineStatus();
 
   useEffect(() => {
     const fetchPledges = async () => {
@@ -31,6 +33,10 @@ export default function DonorDashboard() {
   }, []);
 
   const cancelPledge = async (pledgeId) => {
+    if (!online) {
+      alert("You are offline. Reconnect before cancelling a pledge.");
+      return;
+    }
     if (!window.confirm("Cancel this pledge?")) return;
     try {
       await api.put(`/api/pledges/${pledgeId}/cancel`);
@@ -146,9 +152,10 @@ export default function DonorDashboard() {
                   </button>
                   <button
                     onClick={() => cancelPledge(p.pledgeId)}
-                    className="text-xs bg-red-50 border border-red-200 text-red-600 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-100 transition-all duration-200"
+                    disabled={!online}
+                    className="text-xs bg-red-50 border border-red-200 text-red-600 px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-red-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <X className="w-3 h-3" /> Cancel
+                    <X className="w-3 h-3" /> {online ? "Cancel" : "Offline"}
                   </button>
                 </div>
               </div>

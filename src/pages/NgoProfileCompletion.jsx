@@ -19,6 +19,7 @@ import {
   getNgoProfileCompletion,
   normalizeNgoProfile,
 } from "../utils/ngoProfile";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 
 const FIELD_ICONS = {
   name: Building2,
@@ -47,6 +48,7 @@ export default function NgoProfileCompletion() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
+  const online = useOnlineStatus();
 
   const completion = getNgoProfileCompletion(form);
 
@@ -83,6 +85,10 @@ export default function NgoProfileCompletion() {
 
   const handleSave = async (event) => {
     event.preventDefault();
+    if (!online) {
+      setError("You are offline. Reconnect before saving profile details.");
+      return;
+    }
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -106,6 +112,11 @@ export default function NgoProfileCompletion() {
     const file = target.files?.[0];
 
     if (!file) return;
+    if (!online) {
+      setError("You are offline. Reconnect before uploading a profile photo.");
+      target.value = "";
+      return;
+    }
 
     setUploading(true);
     setError(null);
@@ -233,14 +244,22 @@ export default function NgoProfileCompletion() {
                 </div>
               </div>
 
-              <label className="mt-4 inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 cursor-pointer">
+              <label
+                className={`mt-4 inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 ${
+                  online
+                    ? "cursor-pointer hover:bg-slate-50"
+                    : "cursor-not-allowed opacity-50"
+                }`}
+              >
                 <ImagePlus className="h-4 w-4" />
-                <span>{uploading ? "Uploading..." : "Upload Photo"}</span>
+                <span>
+                  {uploading ? "Uploading..." : online ? "Upload Photo" : "Offline"}
+                </span>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handlePhotoUpload}
-                  disabled={uploading}
+                  disabled={uploading || !online}
                   className="hidden"
                 />
               </label>
@@ -351,7 +370,7 @@ export default function NgoProfileCompletion() {
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={saving || !online}
                     className="bg-teal-600 text-white hover:bg-teal-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50 inline-flex items-center justify-center gap-2"
                   >
                     <Save className="h-4 w-4" />

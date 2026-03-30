@@ -18,6 +18,7 @@ import {
   getNgoProfileCompletion,
   normalizeNgoProfile,
 } from "../utils/ngoProfile";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 
 const MAX_ACTIVE_NEEDS = 5;
 const INITIAL_FORM = {
@@ -39,6 +40,7 @@ export default function NgoDashboard() {
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const online = useOnlineStatus();
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -80,6 +82,10 @@ export default function NgoDashboard() {
 
   const handleAddNeed = async (event) => {
     event.preventDefault();
+    if (!online) {
+      setError("You are offline. Reconnect before creating a need.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -96,6 +102,10 @@ export default function NgoDashboard() {
   };
 
   const handleDeleteNeed = async (needId) => {
+    if (!online) {
+      setError("You are offline. Reconnect before deleting a need.");
+      return;
+    }
     if (!window.confirm("Delete this need?")) return;
 
     try {
@@ -214,11 +224,11 @@ export default function NgoDashboard() {
 
                 <button
                   onClick={() => canAddNeed && setShowAddModal(true)}
-                  disabled={!canAddNeed}
+                  disabled={!canAddNeed || !online}
                   className="bg-teal-600 text-white hover:bg-teal-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50 inline-flex items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
-                  Add Need
+                  {online ? "Add Need" : "Offline"}
                 </button>
               </div>
 
@@ -285,10 +295,11 @@ export default function NgoDashboard() {
                           <div className="mt-4 flex justify-end">
                             <button
                               onClick={() => handleDeleteNeed(need.id)}
-                              className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center gap-2"
+                              disabled={!online}
+                              className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Trash2 className="h-4 w-4" />
-                              Delete
+                              {online ? "Delete" : "Offline"}
                             </button>
                           </div>
                         )}
@@ -455,10 +466,10 @@ export default function NgoDashboard() {
 
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || !online}
                   className="bg-teal-600 text-white hover:bg-teal-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50"
                 >
-                  {submitting ? "Saving..." : "Add Need"}
+                  {submitting ? "Saving..." : online ? "Add Need" : "Offline"}
                 </button>
               </div>
             </form>

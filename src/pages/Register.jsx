@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import LoadingOverlay from "../components/LoadingOverlay";
+import useOnlineStatus from "../hooks/useOnlineStatus";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function Register() {
   const [error, setError] = useState(null);
   const [step, setStep] = useState(1); // 1: Info, 2: OTP
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const online = useOnlineStatus();
 
   // If already logged in, don't allow access to register page
   useEffect(() => {
@@ -90,6 +92,11 @@ export default function Register() {
 
   const onSendOtp = async (e) => {
     e.preventDefault();
+    if (!online) {
+      setError("You are offline. Reconnect before requesting a verification code.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -107,6 +114,11 @@ export default function Register() {
 
   const onRegister = async (e) => {
     e.preventDefault();
+    if (!online) {
+      setError("You are offline. Reconnect before completing registration.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -272,10 +284,16 @@ export default function Register() {
           <button
             id="hidden-submit-btn"
             type="submit"
-            disabled={loading}
+            disabled={loading || !online}
             className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50"
           >
-            {loading ? "Please wait..." : step === 1 ? "Verify Email" : "Complete Registration"}
+            {loading
+              ? "Please wait..."
+              : !online
+                ? "Offline"
+                : step === 1
+                  ? "Verify Email"
+                  : "Complete Registration"}
           </button>
 
           <p className="text-sm text-slate-500">
