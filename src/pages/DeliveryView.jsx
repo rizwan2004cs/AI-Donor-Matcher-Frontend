@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
 import Navbar from "../components/Navbar";
-import { createCategoryIcon } from "../components/CategoryPin";
+import { createCategoryIcon, createCurrentLocationIcon } from "../components/CategoryPin";
 import { clearDeliverySession, loadDeliverySession, saveDeliverySession } from "../utils/deliverySession";
 import { Clock, Navigation, X } from "lucide-react";
 import useOnlineStatus from "../hooks/useOnlineStatus";
@@ -10,6 +10,8 @@ import api from "../api/axios";
 import "leaflet/dist/leaflet.css";
 
 const OSRM_URL = import.meta.env.VITE_OSRM_URL || "https://router.project-osrm.org";
+const NOMINATIM_URL =
+  import.meta.env.VITE_NOMINATIM_URL || "https://nominatim.openstreetmap.org";
 
 export default function DeliveryView() {
   const { pledgeId } = useParams();
@@ -25,6 +27,11 @@ export default function DeliveryView() {
 
   const [pledge, setPledge] = useState(initialPledge);
   const [donorPos, setDonorPos] = useState(null);
+  const [destinationPos, setDestinationPos] = useState(
+    initialPledge?.ngoLat && initialPledge?.ngoLng
+      ? [initialPledge.ngoLat, initialPledge.ngoLng]
+      : null
+  );
   const [route, setRoute] = useState([]);
   const [eta, setEta] = useState(null);
   const [distanceKm, setDistanceKm] = useState(null);
@@ -91,7 +98,63 @@ export default function DeliveryView() {
   }, [pledge, pledgeId]);
 
   useEffect(() => {
-    if (!pledge?.ngoLat || !pledge?.ngoLng || typeof navigator === "undefined") return;
+    if (!pledge) {
+      setDestinationPos(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fallbackPos =
+      pledge.ngoLat && pledge.ngoLng ? [pledge.ngoLat, pledge.ngoLng] : null;
+
+    const resolveDestination = async () => {
+      const address = pledge.ngoAddress?.trim();
+
+      if (!address) {
+        setDestinationPos(fallbackPos);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${NOMINATIM_URL}/search?format=jsonv2&limit=1&q=${encodeURIComponent(address)}`,
+          {
+            headers: {
+              Accept: "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Geocoding request failed");
+        }
+
+        const results = await response.json();
+        const match = results?.[0];
+
+        if (!cancelled && match?.lat && match?.lon) {
+          setDestinationPos([Number(match.lat), Number(match.lon)]);
+          return;
+        }
+      } catch {
+        // Fall back to stored coordinates when address geocoding is unavailable.
+      }
+
+      if (!cancelled) {
+        setDestinationPos(fallbackPos);
+      }
+    };
+
+    resolveDestination();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pledge]);
+
+  useEffect(() => {
+    if (!destinationPos?.length || typeof navigator === "undefined") return;
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -100,7 +163,7 @@ export default function DeliveryView() {
 
         try {
           const response = await fetch(
-            `${OSRM_URL}/route/v1/driving/${position.coords.longitude},${position.coords.latitude};${pledge.ngoLng},${pledge.ngoLat}?overview=full&geometries=geojson`
+            `${OSRM_URL}/route/v1/driving/${position.coords.longitude},${position.coords.latitude};${destinationPos[1]},${destinationPos[0]}?overview=full&geometries=geojson`
           );
           const data = await response.json();
           const routeData = data.routes?.[0];
@@ -112,17 +175,17 @@ export default function DeliveryView() {
             setEta(Math.ceil(routeData.duration / 60));
             setDistanceKm((routeData.distance / 1000).toFixed(1));
           } else {
-            setRoute([currentPos, [pledge.ngoLat, pledge.ngoLng]]);
+            setRoute([currentPos, destinationPos]);
           }
         } catch {
-          setRoute([currentPos, [pledge.ngoLat, pledge.ngoLng]]);
+          setRoute([currentPos, destinationPos]);
         }
       },
       () => {
         setDonorPos(null);
       }
     );
-  }, [pledge]);
+  }, [destinationPos]);
 
   useEffect(() => {
     if (!pledge?.expiresAt) return;
@@ -171,11 +234,22 @@ export default function DeliveryView() {
   };
 
   const openGoogleMaps = () => {
-    if (!pledge?.ngoLat || !pledge?.ngoLng) return;
-    window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${pledge.ngoLat},${pledge.ngoLng}`,
-      "_blank"
-    );
+    const address = pledge?.ngoAddress?.trim();
+    const hasCoords = pledge?.ngoLat && pledge?.ngoLng;
+    if (!address && !hasCoords) return;
+
+    const destination = address || `${pledge.ngoLat},${pledge.ngoLng}`;
+    const params = new URLSearchParams({
+      api: "1",
+      destination,
+      travelmode: "driving",
+    });
+
+    if (donorPos?.length === 2) {
+      params.set("origin", `${donorPos[0]},${donorPos[1]}`);
+    }
+
+    window.open(`https://www.google.com/maps/dir/?${params.toString()}`, "_blank");
   };
 
   if (loading) {
@@ -209,7 +283,7 @@ export default function DeliveryView() {
     );
   }
 
-  const center = donorPos || [pledge.ngoLat, pledge.ngoLng];
+  const center = donorPos || destinationPos || [pledge.ngoLat, pledge.ngoLng];
 
   return (
     <>
@@ -250,16 +324,15 @@ export default function DeliveryView() {
               attribution="&copy; OpenStreetMap"
             />
             {donorPos && (
-              <Marker position={donorPos}>
-                <Popup>You are here</Popup>
+              <Marker position={donorPos} icon={createCurrentLocationIcon()}>
+                <Popup>Your current location</Popup>
               </Marker>
             )}
-            <Marker
-              position={[pledge.ngoLat, pledge.ngoLng]}
-              icon={createCategoryIcon(pledge.category)}
-            >
-              <Popup>{pledge.ngoAddress || "NGO drop-off point"}</Popup>
-            </Marker>
+            {destinationPos && (
+              <Marker position={destinationPos} icon={createCategoryIcon(pledge.category)}>
+                <Popup>{pledge.ngoAddress || "NGO drop-off point"}</Popup>
+              </Marker>
+            )}
             {route.length > 0 && (
               <Polyline positions={route} color="#0D9488" weight={4} opacity={0.8} />
             )}
