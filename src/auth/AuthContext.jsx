@@ -1,4 +1,6 @@
 import { createContext, useContext, useState } from "react";
+import { signOut } from "firebase/auth";
+import { firebaseAuth } from "../firebase";
 
 const AuthContext = createContext(null);
 
@@ -14,10 +16,16 @@ export function AuthProvider({ children }) {
     setUser(userData);
   };
 
-  const logout = () => {
+  const logout = async () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
+
+    try {
+      await signOut(firebaseAuth);
+    } catch (err) {
+      console.error("Firebase sign out failed:", err);
+    }
   };
 
   return (

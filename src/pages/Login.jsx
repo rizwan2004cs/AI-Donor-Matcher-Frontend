@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { useAuth } from "../auth/AuthContext";
 import api from "../api/axios";
 import Navbar from "../components/Navbar";
 import LoadingOverlay from "../components/LoadingOverlay";
 import useOnlineStatus from "../hooks/useOnlineStatus";
+import { firebaseAuth } from "../firebase";
 
 function normalizeAuthUser(data) {
   return (
@@ -59,22 +61,48 @@ export default function Login() {
     setError(null);
 
     try {
-      const res = await api.post("/api/auth/login", form);
-      const token = res.data.token;
-      const user = normalizeAuthUser(res.data);
-      login(user, token);
+      const credential = await signInWithEmailAndPassword(
+        firebaseAuth,
+        form.email,
+        form.password
+      );
+      const firebaseUser = credential.user;
+      const idToken = await firebaseUser.getIdToken();
+
+      const res = await api.post(
+        "/api/auth/firebase/login",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
+
+      const appUser = normalizeAuthUser(res.data);
+      login(appUser, idToken);
 
       // Redirect based on role
-      if (user.role === "ADMIN") navigate("/admin/dashboard");
-      else if (user.role === "NGO") navigate("/ngo/dashboard");
+      if (appUser.role === "ADMIN") navigate("/admin/dashboard");
+      else if (appUser.role === "NGO") navigate("/ngo/dashboard");
       else navigate("/");
     } catch (err) {
       console.error("LOGIN ERROR:", err);
-      const status = err.response?.status;
+      const code = err?.code;
+      const status = err?.response?.status;
       const message =
-        err.response?.data?.error || err.response?.data?.message || err.message || "";
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "";
 
-      if (status === 401) {
+      if (
+        status === 401 ||
+        code === "auth/invalid-credential" ||
+        code === "auth/wrong-password" ||
+        code === "auth/user-not-found" ||
+        code === "auth/invalid-email"
+      ) {
         setError("Invalid credentials. Please check your email and password.");
       } else {
         setError(message || "Login failed");

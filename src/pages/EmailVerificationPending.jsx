@@ -1,92 +1,72 @@
-import { useState, useEffect, useMemo } from "react";
-import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
-import api from "../api/axios";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { sendEmailVerification } from "firebase/auth";
+import { CheckCircle2, MailCheck, MailWarning } from "lucide-react";
 import Navbar from "../components/Navbar";
 import useOnlineStatus from "../hooks/useOnlineStatus";
+import { firebaseAuth } from "../firebase";
 
 export default function EmailVerificationPending() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-
+  const online = useOnlineStatus();
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [resending, setResending] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [verified, setVerified] = useState(false);
+  const [status, setStatus] = useState("pending");
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
-  const online = useOnlineStatus();
+  const [resending, setResending] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    const paramEmail = searchParams.get("email");
-    const stateEmail = location.state?.email;
-    const storedEmail = localStorage.getItem("pendingVerificationEmail");
-    const resolved = paramEmail || stateEmail || storedEmail || "";
-    setEmail(resolved);
-  }, [searchParams, location.state]);
+    setEmail(firebaseAuth.currentUser?.email || "");
+  }, []);
 
-  const handleOtpChange = (value) => {
-    const numeric = value.replace(/[^0-9]/g, "").slice(0, 6);
-    setOtp(numeric);
-    if (error) setError(null);
-  };
-
-  const handleVerify = async (e) => {
-    e.preventDefault();
-    if (!email) {
-      setError("We couldn't detect your email. Please register again.");
-      return;
-    }
-    if (otp.length < 4) {
-      setError("Please enter the verification code sent to your email.");
+  const refreshVerification = async () => {
+    if (!firebaseAuth.currentUser) {
+      setError("We could not find your session. Please log in again.");
       return;
     }
     if (!online) {
-      setError("You are offline. Reconnect before verifying your email.");
+      setError("You are offline. Reconnect before checking verification.");
       return;
     }
 
-    setVerifying(true);
+    setChecking(true);
     setError(null);
     setMessage(null);
-
     try {
-      await api.post("/api/auth/verify-otp", { email, otp });
-      setVerified(true);
-      setMessage("Email verified successfully! You can now log in.");
-      localStorage.removeItem("pendingVerificationEmail");
+      await firebaseAuth.currentUser.reload();
+      if (firebaseAuth.currentUser.emailVerified) {
+        setStatus("verified");
+        setMessage("Email verified successfully!");
+      } else {
+        setStatus("pending");
+        setMessage("Your email is not verified yet. Please check your inbox.");
+      }
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Invalid or expired code. Please try again or resend."
-      );
+      setError("Could not refresh verification status. Please try again.");
     } finally {
-      setVerifying(false);
+      setChecking(false);
     }
   };
 
-  const resend = async () => {
-    if (!email) {
-      setMessage(null);
-      setError("Could not resend — please register again.");
+  const resendVerification = async () => {
+    if (!firebaseAuth.currentUser) {
+      setError("We could not find your session. Please log in again.");
       return;
     }
     if (!online) {
-      setMessage(null);
-      setError("You are offline. Reconnect before resending a verification code.");
+      setError("You are offline. Reconnect before resending the email.");
       return;
     }
 
     setResending(true);
-    setMessage(null);
     setError(null);
+    setMessage(null);
     try {
-      await api.post("/api/auth/send-otp", { email });
-      setMessage("Verification code sent. Check your inbox.");
+      await sendEmailVerification(firebaseAuth.currentUser);
+      setMessage("Verification email sent. Please check your inbox.");
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Could not resend code. Please try again later."
-      );
+      setError("Could not send verification email. Please try again later.");
     } finally {
       setResending(false);
     }
@@ -97,73 +77,75 @@ export default function EmailVerificationPending() {
       <Navbar />
       <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
         <div className="glass rounded-2xl p-8 w-full max-w-md text-center space-y-4">
-          {verified ? (
+          {status === "verified" ? (
             <>
-              <div className="text-4xl">✅</div>
-              <h1 className="text-xl font-bold text-slate-900">Email Verified!</h1>
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+                <CheckCircle2 className="h-7 w-7" />
+              </div>
+              <h1 className="text-xl font-bold text-slate-900">Email Verified</h1>
               <p className="text-slate-600">{message}</p>
-              <a
-                href="/login"
-                className="inline-block bg-teal-600 text-white px-6 py-2 rounded-xl font-medium hover:bg-teal-700 transition-all duration-200"
+              <button
+                onClick={() => navigate("/")}
+                className="inline-flex items-center justify-center rounded-xl bg-teal-600 px-6 py-2 text-white font-medium hover:bg-teal-700 transition-all duration-200"
               >
-                Go to Login
-              </a>
+                Continue to app
+              </button>
             </>
           ) : (
             <>
-              <div className="text-4xl">✉️</div>
-              <h1 className="text-xl font-bold text-slate-900">
-                Verify Your Email
-              </h1>
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-100 text-teal-700">
+                <MailCheck className="h-7 w-7" />
+              </div>
+              <h1 className="text-xl font-bold text-slate-900">Verify Your Email</h1>
               {email ? (
                 <p className="text-slate-600">
-                  Enter the verification code sent to{" "}
-                  <span className="font-medium text-slate-900">{email}</span>.
+                  We sent a verification email to{" "}
+                  <span className="font-semibold text-slate-900">{email}</span>.
                 </p>
               ) : (
                 <p className="text-slate-600">
-                  We could not detect your email address. Please return to registration and
-                  sign up again.
+                  We could not detect your email. Please log in again to resend the
+                  verification email.
                 </p>
               )}
 
-              {email && (
-                <form onSubmit={handleVerify} className="space-y-3">
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={otp}
-                    onChange={(e) => handleOtpChange(e.target.value)}
-                    placeholder="Enter 6-digit code"
-                    className="w-full bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-4 py-2.5 text-center tracking-[0.3em] text-lg focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all duration-200"
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={verifying || otp.length === 0 || !online}
-                    className="w-full bg-teal-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-teal-700 transition-all duration-200 disabled:opacity-50"
-                  >
-                    {verifying ? "Verifying..." : online ? "Verify Code" : "Offline"}
-                  </button>
-                </form>
-              )}
-
-              <button
-                type="button"
-                onClick={resend}
-                disabled={resending || !email || !online}
-                className="mt-2 text-sm text-teal-600 hover:text-teal-700 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-200"
-              >
-                {resending ? "Sending code..." : "Resend verification code"}
-              </button>
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={refreshVerification}
+                  disabled={checking || !online}
+                  className="w-full rounded-xl bg-teal-600 px-6 py-2.5 text-white font-medium transition-all duration-200 hover:bg-teal-700 disabled:opacity-50"
+                >
+                  {checking ? "Checking..." : online ? "I have verified" : "Offline"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resendVerification}
+                  disabled={resending || !online}
+                  className="w-full rounded-xl border border-teal-200 bg-teal-50 px-6 py-2.5 text-teal-700 font-medium transition-all duration-200 hover:bg-teal-100 disabled:opacity-50"
+                >
+                  {resending ? "Sending email..." : "Resend verification email"}
+                </button>
+              </div>
 
               {message && <p className="text-sm text-emerald-600">{message}</p>}
-              {error && <p className="text-sm text-red-500">{error}</p>}
+              {error && (
+                <div className="flex items-center justify-center gap-2 text-sm text-red-500">
+                  <MailWarning className="h-4 w-4" />
+                  <span>{error}</span>
+                </div>
+              )}
 
               <p className="text-sm text-slate-400">
                 You can browse the map while you wait, but pledging requires a verified
                 email.
+              </p>
+
+              <p className="text-xs text-slate-400">
+                Need to switch accounts?{" "}
+                <Link to="/login" className="text-teal-600 hover:text-teal-700 font-medium">
+                  Log in again
+                </Link>
               </p>
             </>
           )}
