@@ -31,16 +31,14 @@ export function createCategoryIcon(category) {
 export function createCurrentLocationIcon() {
   return L.divIcon({
     className: "",
-    html: createPinMarkup({
-      fill: "#0D9488",
-      ring: "rgba(255,255,255,0.95)",
-      glyph: `
-        <path d="M15 9.2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6Zm0 1.8a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" fill="#0D9488"/>
-        <path d="M15 6.8a.9.9 0 0 1 .9.9v1.1a.9.9 0 1 1-1.8 0V7.7a.9.9 0 0 1 .9-.9Zm0 12.4a.9.9 0 0 1 .9.9v1.1a.9.9 0 1 1-1.8 0v-1.1a.9.9 0 0 1 .9-.9Zm7.3-6.2a.9.9 0 0 1 0 1.8h-1.1a.9.9 0 0 1 0-1.8h1.1Zm-12.4 0a.9.9 0 0 1 0 1.8H8.8a.9.9 0 0 1 0-1.8h1.1Z" fill="#0D9488"/>
-      `,
-    }),
-    iconSize: [30, 40],
-    iconAnchor: [15, 36],
-    popupAnchor: [0, -32],
+    html: `
+      <div style="position:relative; width:26px; height:26px; display:flex; align-items:center; justify-content:center;">
+        <span style="position:absolute; inset:0; border-radius:9999px; background:rgba(14,165,233,0.22); border:1px solid rgba(14,165,233,0.35);"></span>
+        <span style="position:absolute; width:14px; height:14px; border-radius:9999px; background:#0ea5e9; border:3px solid white; box-shadow:0 6px 16px rgba(14,165,233,0.35);"></span>
+      </div>
+    `,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+    popupAnchor: [0, -14],
   });
 }
