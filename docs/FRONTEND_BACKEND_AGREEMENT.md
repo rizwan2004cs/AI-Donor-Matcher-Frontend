@@ -1,590 +1,293 @@
 # Frontend-Backend Agreement
 
-Last updated: 2026-03-30
+Last updated: 2026-03-31
 
-This document is the working contract between the frontend and backend for the AI Donor Matcher project.
+This document is the current working contract between the React frontend and the Spring Boot backend.
 
-Use this together with Swagger UI:
-- Swagger UI: `/swagger-ui.html`
+Use this together with backend Swagger:
+
+- Swagger UI: `/swagger-ui/index.html`
 - OpenAPI JSON: `/v3/api-docs`
 
-If this document and the frontend implementation differ, this document and Swagger should be treated as the source of truth.
+If this document and old docs differ, this document plus Swagger are the source of truth.
 
 ## 1. Base Rules
 
-### Base URL
-- Local backend: `http://localhost:8080`
-- Production/staging: use the deployed backend domain with the same routes
+### Base URLs
 
-### Content type
-- Default request body: `application/json`
-- NGO registration with document upload: `multipart/form-data`
+- Local backend: `http://localhost:8080`
+- Production backend: `https://ai-donor-matcher-backend.onrender.com`
+- Production frontend: `https://ai-donor-matcher-frontend.vercel.app`
+
+### Content Types
+
+- Standard API body: `application/json`
+- NGO document upload: `multipart/form-data`
 - NGO photo upload: `multipart/form-data`
 
-### Authentication header
-For protected endpoints, frontend must send:
+## 2. Authentication Model
+
+The project no longer uses the old OTP-first frontend auth flow.
+
+The active flow is:
+
+1. Frontend authenticates users with Firebase Email/Password.
+2. Frontend gets Firebase ID token from the signed-in user.
+3. Frontend sends that token to backend in:
 
 ```http
-Authorization: Bearer <jwt-token>
+Authorization: Bearer <firebase-id-token>
 ```
 
-### JWT storage
-- Frontend stores the token returned by login
-- Frontend includes the token on protected requests only
-- Frontend should clear the token on logout or `401`
+4. Backend validates the Firebase token and resolves the application user.
 
-## 2. Registration Agreement
+### Backend responsibilities after Firebase auth
 
-The active registration flow is OTP-first.
+- assign or resolve `DONOR`, `NGO`, `ADMIN`
+- enforce NGO approval state
+- enforce profile completion state
+- enforce all protected business rules
 
-### Required frontend flow
-1. User enters registration details on the registration page.
-2. Frontend calls `POST /api/auth/send-registration-otp` with the email.
-3. Frontend redirects user to the OTP page.
-4. User enters the OTP.
-5. Frontend submits `POST /api/auth/register` with the full registration payload including `otp`.
-6. Backend creates the account only if the OTP is valid.
+### Deprecated frontend auth endpoints
 
-### Important behavior
-- No account is created before OTP-backed registration succeeds.
-- Successful registration creates the user as already verified.
-- Frontend must not use link-based verification for new registration.
-- `GET /api/auth/verify` exists only as a legacy endpoint and is not part of the active frontend flow.
+These are not part of the active frontend flow anymore:
 
-## 3. Standard Response Agreement
+- `POST /api/auth/send-registration-otp`
+- `POST /api/auth/send-otp`
+- `POST /api/auth/verify-otp`
+- old OTP-based `POST /api/auth/register`
+- password-based `POST /api/auth/login`
 
-### Success shapes
-Common success responses are:
+## 3. Registration and Login Agreement
 
-```json
-{ "message": "..." }
+### First-time application registration
+
+```http
+POST /api/auth/firebase/register
+Authorization: Bearer <firebase-id-token>
 ```
 
-or typed objects such as login, pledge, NGO, or need data.
-
-### Validation error shape
-When request validation fails, backend returns:
+Example JSON body:
 
 ```json
 {
-  "error": "Validation failed.",
-  "fieldErrors": {
-    "email": "must not be blank",
-    "otp": "must not be blank"
-  },
-  "status": 400,
-  "timestamp": "2026-03-30T17:00:00"
-}
-```
-
-### Runtime error shape
-For business-rule errors, backend returns:
-
-```json
-{
-  "error": "Email already registered.",
-  "status": 400,
-  "timestamp": "2026-03-30T17:00:00"
-}
-```
-
-### Security error shape
-- `401` means invalid login or missing/invalid auth state
-- `403` means authenticated but not allowed
-
-Example:
-
-```json
-{
-  "error": "Access denied.",
-  "status": 403,
-  "timestamp": "2026-03-30T17:00:00"
-}
-```
-
-## 4. Auth Contract
-
-### Send registration OTP
-`POST /api/auth/send-registration-otp`
-
-Request:
-```json
-{
-  "email": "user@example.com"
-}
-```
-
-Response:
-```json
-{
-  "message": "Verification code sent to your email"
-}
-```
-
-### Register donor or NGO
-`POST /api/auth/register`
-
-JSON or multipart payload fields:
-
-```json
-{
-  "fullName": "Helping Hands Foundation",
-  "email": "ngo@example.com",
-  "password": "StrongPassword123",
+  "fullName": "Helping Hands",
   "role": "NGO",
-  "location": "Colombo",
-  "otp": "123456"
+  "location": "Nellore"
 }
 ```
 
-Multipart note:
-- For NGO registration, frontend may attach `documents` as the file part.
+NGO registration may still use multipart payload when a document file is included.
 
-Success response:
-```json
-{
-  "message": "Registration successful. You can now log in."
-}
+### Returning application login
+
+```http
+POST /api/auth/firebase/login
+Authorization: Bearer <firebase-id-token>
 ```
 
-### Login
-`POST /api/auth/login`
+### Expected frontend behavior
 
-Request:
-```json
-{
-  "email": "alice@example.com",
-  "password": "password123"
-}
-```
+- Firebase signup/login happens first in the browser
+- frontend then calls backend register/login
+- frontend stores the backend user payload plus active Firebase bearer token
+- all protected API calls use the Firebase bearer token
 
-Response:
-```json
-{
-  "token": "jwt-token",
-  "userId": 1,
-  "fullName": "Alice Donor",
-  "email": "alice@example.com",
-  "role": "DONOR",
-  "emailVerified": true
-}
-```
+## 4. Public Endpoints Used by Frontend
 
-Frontend should use `role` to route users to the correct dashboard.
-If the user is an NGO and the app needs completion gating, frontend must fetch `GET /api/ngo/my/profile` after login because login does not include `profileComplete`.
+### NGO discovery and profile
 
-### Resend verification OTP
-`POST /api/auth/resend-verification`
-
-Request:
-```json
-{
-  "email": "user@example.com"
-}
-```
-
-Response:
-```json
-{
-  "message": "Verification code sent to your email."
-}
-```
-
-### Send OTP to an existing email
-`POST /api/auth/send-otp`
-
-Request:
-```json
-{
-  "email": "user@example.com"
-}
-```
-
-Response:
-```json
-{
-  "message": "Verification code sent"
-}
-```
-
-### Verify OTP
-`POST /api/auth/verify-otp`
-
-Request:
-```json
-{
-  "email": "user@example.com",
-  "otp": "123456"
-}
-```
-
-Response:
-```json
-{
-  "message": "Email verified"
-}
-```
-
-## 5. Role Access Agreement
-
-### Public
-- `POST /api/auth/**`
 - `GET /api/ngos`
 - `GET /api/ngos/{id}`
 
-### NGO-only
-- `GET /api/ngo/my/profile`
-- `PUT /api/ngo/my/profile`
-- `POST /api/ngo/my/photo`
-- `GET /api/ngo/my/pledges`
-- `GET /api/ngo/my/needs`
-- `POST /api/needs`
-- `PUT /api/needs/{id}`
-- `DELETE /api/needs/{id}`
-- `PATCH /api/needs/{id}/fulfill`
+`GET /api/ngos` should support:
 
-### Donor-only
-- `POST /api/ngos/{id}/report`
-- `POST /api/pledges`
-- `DELETE /api/pledges/{id}`
-- `GET /api/pledges/active`
-- `GET /api/pledges/history`
-
-### Admin-only
-- `GET /api/admin/ngos/pending`
-- `GET /api/admin/ngos`
-- `GET /api/admin/ngos/{id}/needs`
-- `POST /api/admin/ngos/{id}/approve`
-- `POST /api/admin/ngos/{id}/reject`
-- `POST /api/admin/ngos/{id}/suspend`
-- `GET /api/admin/reports`
-- `PUT /api/admin/needs/{id}`
-- `DELETE /api/admin/needs/{id}`
-- `GET /api/admin/stats`
-
-## 6. NGO Contract
-
-### Get own NGO profile
-`GET /api/ngo/my/profile`
-
-Frontend should treat this as the editable NGO profile source.
-This response is also the source of truth for NGO trust/completion fields such as `trustScore`, `trustTier`, and `profileComplete`.
-
-### Update own NGO profile
-`PUT /api/ngo/my/profile`
-
-Request shape:
-```json
-{
-  "name": "Helping Hands",
-  "address": "123 Main Street, Colombo",
-  "contactEmail": "contact@helpinghands.org",
-  "contactPhone": "+94 77 123 4567",
-  "description": "Supporting families with essential supplies.",
-  "categoryOfWork": "FOOD"
-}
-```
-
-### Upload NGO photo
-`POST /api/ngo/my/photo`
-
-Request:
-- `multipart/form-data`
-- file field name: `file`
-
-Response:
-```json
-{
-  "url": "https://res.cloudinary.com/demo/image/upload/sample.jpg"
-}
-```
-
-Frontend should immediately update displayed NGO photo with this URL.
-
-### Discover NGOs
-`GET /api/ngos`
-
-Supported query params:
 - `lat`
 - `lng`
 - `radius`
 - `category`
 - `search`
 
-Frontend may call this with any combination of those filters.
-
-### Report an NGO
-`POST /api/ngos/{id}/report`
-
-Request:
-```json
-{
-  "reason": "Suspicious activity"
-}
-```
-
-Response:
-```json
-{
-  "message": "Report submitted."
-}
-```
-
-### Incoming pledges for NGO dashboard
-`GET /api/ngo/my/pledges`
-
-Response item shape:
-```json
-{
-  "pledgeId": 44,
-  "needId": 12,
-  "donorName": "Alice Donor",
-  "donorEmail": "alice@example.com",
-  "itemName": "Rice packs",
-  "quantity": 10,
-  "status": "ACTIVE",
-  "createdAt": "2026-03-30T10:15:00"
-}
-```
-
-## 7. Needs Contract
+Approved, publicly visible NGOs with valid coordinates should appear in this result.
 
 ### Need detail
-`GET /api/needs/{id}`
 
-Response shape:
-```json
-{
-  "id": 12,
-  "ngoId": 5,
-  "ngoName": "Helping Hands",
-  "ngoAddress": "123 Main Street, Colombo",
-  "ngoPhotoUrl": "https://res.cloudinary.com/demo/image/upload/sample.jpg",
-  "ngoTrustScore": 82,
-  "ngoTrustTier": "TRUSTED",
-  "category": "FOOD",
-  "itemName": "Rice packs",
-  "description": "5kg rice packs for 50 families",
-  "quantityRequired": 50,
-  "quantityPledged": 30,
-  "quantityRemaining": 20,
-  "urgency": "HIGH",
-  "expiryDate": "2026-04-15",
-  "status": "PARTIALLY_PLEDGED",
-  "createdAt": "2026-03-30T10:15:00"
-}
-```
+- `GET /api/needs/{id}`
 
-### Create or update need
-Used by:
-- `POST /api/needs`
-- `PUT /api/needs/{id}`
+Used by the pledge screen for direct load and refresh-safe entry.
 
-Request shape:
-```json
-{
-  "category": "FOOD",
-  "itemName": "Rice packs",
-  "description": "5kg rice packs for 50 families",
-  "quantityRequired": 50,
-  "urgency": "HIGH",
-  "expiryDate": "2026-04-15"
-}
-```
-
-### Delete need
-`DELETE /api/needs/{id}`
-
-Response:
-- `204 No Content`
-
-### Fulfill need
-`PATCH /api/needs/{id}/fulfill`
-
-Response:
-- `204 No Content`
-
-Frontend must not expect a JSON body for `204` responses.
-
-## 8. Pledge Contract
+## 5. Donor Contract
 
 ### Create pledge
-`POST /api/pledges`
 
-Request:
-```json
-{
-  "needId": 12,
-  "quantity": 10
-}
+```http
+POST /api/pledges
 ```
 
-Response:
-```json
-{
-  "pledgeId": 44,
-  "ngoLat": 6.9271,
-  "ngoLng": 79.8612,
-  "ngoAddress": "123 Main Street, Colombo",
-  "ngoContactEmail": "contact@helpinghands.org",
-  "expiresAt": "2026-03-31T10:30:00"
-}
-```
+Expected response includes delivery-ready fields such as:
 
-Frontend can use this response for:
-- navigation or map handoff
-- donation coordination details
-- pledge-expiry display
+- `pledgeId`
+- `ngoLat`
+- `ngoLng`
+- `ngoAddress`
+- `ngoContactEmail`
+- `expiresAt`
 
-### Cancel pledge
-`DELETE /api/pledges/{id}`
+### Active donor pledges
 
-Response:
-- `204 No Content`
+- `GET /api/pledges/active`
 
-### Active pledges
-`GET /api/pledges/active`
+### Donor pledge history
 
-### Pledge history
-`GET /api/pledges/history`
+- `GET /api/pledges/history`
+
+History should include non-active closed states such as:
+
+- `CANCELLED`
+- `FULFILLED`
+- expired / closed states returned by backend
 
 ### Pledge detail
-`GET /api/pledges/{id}`
 
-Response shape:
-```json
-{
-  "pledgeId": 44,
-  "needId": 12,
-  "ngoId": 5,
-  "ngoName": "Helping Hands",
-  "ngoPhotoUrl": "https://res.cloudinary.com/demo/image/upload/sample.jpg",
-  "itemName": "Rice packs",
-  "category": "FOOD",
-  "quantity": 10,
-  "status": "ACTIVE",
-  "createdAt": "2026-03-30T10:15:00",
-  "expiresAt": "2026-04-01T10:15:00",
-  "ngoLat": 6.9271,
-  "ngoLng": 79.8612,
-  "ngoAddress": "123 Main Street, Colombo",
-  "ngoContactEmail": "contact@helpinghands.org"
-}
-```
+- `GET /api/pledges/{id}`
 
-## 9. Admin Contract
+Used for refresh-safe delivery page loading.
 
-### Reject NGO
-`POST /api/admin/ngos/{id}/reject`
+### Cancel pledge
 
-Request:
-```json
-{
-  "reason": "Missing supporting documents"
-}
-```
+- `DELETE /api/pledges/{id}`
 
-Response:
-```json
-{
-  "message": "NGO rejected."
-}
-```
+Expected response: `204 No Content`
 
-### Approve NGO
-`POST /api/admin/ngos/{id}/approve`
+### Report NGO
 
-Response:
-```json
-{
-  "message": "NGO approved."
-}
-```
+- `POST /api/ngos/{id}/report`
 
-### Pending NGO verification queue
-`GET /api/admin/ngos/pending`
+Frontend sends a string reason.
 
-This currently returns the backend `Ngo` entity. For verification-queue UI, the confirmed fields available for document review include:
-- `id`
-- `name`
-- `address`
-- `contactEmail`
-- `contactPhone`
-- `description`
-- `categoryOfWork`
-- `photoUrl`
-- `documentUrl`
+## 6. NGO Contract
+
+### NGO profile
+
+- `GET /api/ngo/my/profile`
+- `PUT /api/ngo/my/profile`
+- `POST /api/ngo/my/photo`
+
+Notes:
+
+- profile completion is determined from profile data, not from Firebase auth response
+- NGO address updates may trigger backend geocoding
+
+### NGO need management
+
+- `GET /api/ngo/my/needs`
+- `POST /api/needs`
+- `PUT /api/needs/{id}`
+- `DELETE /api/needs/{id}`
+
+### NGO incoming pledges
+
+- `GET /api/ngo/my/pledges`
+
+Expected fields now include:
+
+- `pledgeId`
+- `needId`
+- `donorName`
+- `donorEmail`
+- `itemName`
+- `category`
+- `quantity`
 - `status`
-- `profileComplete`
-- `trustScore`
-- `trustTier`
-- `rejectionReason`
 - `createdAt`
+- `expiresAt`
+- `needQuantityRequired`
+- `needQuantityPledged`
+- `needQuantityReceived`
+- `needQuantityRemaining`
 
-### Suspend NGO
-`POST /api/admin/ngos/{id}/suspend`
+### NGO pledge-level receipt
 
-Response:
-```json
-{
-  "message": "NGO suspended."
-}
+- `PATCH /api/ngo/my/pledges/{pledgeId}/receive`
+
+This is now the correct NGO confirmation flow.
+
+Rules:
+
+- only the owning NGO can call it
+- only `ACTIVE` pledges can be received
+- received pledge becomes `FULFILLED`
+- related need totals are recalculated
+- need becomes fully fulfilled only when received quantity reaches required quantity
+
+The frontend must not assume that receiving one pledge automatically means the full need is complete.
+
+## 7. Admin Contract
+
+### Admin overview and moderation
+
+- `GET /api/admin/stats`
+- `GET /api/admin/ngos/pending`
+- `POST /api/admin/ngos/{id}/approve`
+- `POST /api/admin/ngos/{id}/reject`
+- `GET /api/admin/reports`
+- `GET /api/admin/ngos`
+- `GET /api/admin/ngos/{id}/needs`
+- `POST /api/admin/ngos/{id}/suspend`
+
+### Supported admin states
+
+The current frontend supports only documented actions. The following remain unsupported unless backend adds them:
+
+- report dismissal / resolution endpoint
+- NGO reinstate / unsuspend endpoint
+
+## 8. Deployment Agreement
+
+### Frontend env vars
+
+The frontend expects:
+
+```text
+VITE_API_BASE_URL=https://ai-donor-matcher-backend.onrender.com
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=ngo-donation-matcher.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=ngo-donation-matcher
+VITE_FIREBASE_STORAGE_BUCKET=ngo-donation-matcher.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=997805461490
+VITE_FIREBASE_APP_ID=1:997805461490:web:7d74b8bc7f4cfd0830e56b
+VITE_OSRM_URL=https://router.project-osrm.org
+VITE_NOMINATIM_URL=https://nominatim.openstreetmap.org
 ```
 
-### Admin stats
-`GET /api/admin/stats`
+### Backend deployment config
 
-Frontend should treat this response as a dynamic object and only render keys it needs.
-Current keys include:
-- `totalUsers`
-- `totalDonors`
-- `totalNgos`
-- `pendingNgos`
-- `approvedNgos`
-- `suspendedNgos`
-- `totalNeeds`
-- `activeNeeds`
-- `fulfilledNeeds`
-- `totalPledges`
-- `activePledges`
-- `fulfilledPledges`
-- `pledgesToday`
-- `fulfillmentsThisMonth`
-- `totalReports`
+Backend must allow frontend origin(s) through CORS, at minimum:
 
-### Admin NGO needs inspection
-`GET /api/admin/ngos/{id}/needs`
+```text
+http://localhost:5173
+https://ai-donor-matcher-frontend.vercel.app
+```
 
-This returns the same safe need-detail shape documented in the needs section and is intended for admin review or inline NGO expansion flows.
+If backend uses pattern-based origin config, exact domains are still preferred over broad wildcards.
 
-### Not currently supported
-These workflows are not yet part of the agreed backend contract:
-- report dismissal or resolution endpoint
-- NGO reinstate endpoint
+### Firebase deployment config
 
-## 10. Frontend Responsibilities
+Firebase authorized domains must include:
 
-- Use the OTP-first registration flow exactly as documented.
-- Do not use link-based verification for new signup.
-- Send `Bearer` token on protected routes.
-- Handle `204` responses without trying to parse JSON.
-- Read validation errors from `fieldErrors` when present.
-- Do not depend on undocumented nested entity fields.
-- Prefer Swagger for exact field names and sample schemas.
+```text
+ai-donor-matcher-frontend.vercel.app
+```
 
-## 11. Backend Responsibilities
+## 9. Frontend Implementation Rules
 
-- Keep Swagger updated when endpoint contracts change.
-- Keep this agreement updated for any frontend-impacting change.
-- Avoid breaking field names or response shapes without coordination.
-- Return consistent validation and runtime error formats.
+- The donor home route is `/`, not `/map`
+- `/map` is only a compatibility redirect
+- Discovery and delivery flows may geocode NGO address on the frontend for route accuracy, but public NGO coordinates still come from backend data
+- Navigation links should prefer NGO address when available, with stored coordinates only as fallback
 
-## 12. Change Management
+## 10. Known Dependency Notes
 
-Any breaking API change should be treated as coordinated work between frontend and backend.
-
-At minimum:
-1. Update backend code.
-2. Update Swagger.
-3. Update this agreement document.
-4. Notify frontend before the change is consumed.
+- Newly approved NGOs will only appear on the discovery map if backend includes them in `GET /api/ngos` with valid coordinates
+- Donor history visibility depends on backend returning closed pledges from `GET /api/pledges/history`
+- Admin report dismissal and NGO reinstate remain future backend scope unless explicitly added
