@@ -62,7 +62,6 @@ export default function NgoProfile() {
       navigate("/login");
       return;
     }
-    if (!user.emailVerified) return;
 
     navigate(`/pledge/${need.id}`, {
       state: {
@@ -190,13 +189,7 @@ export default function NgoProfile() {
 
                       <button
                         onClick={() => handlePledge(need)}
-                        disabled={user && !user.emailVerified}
-                        title={
-                          user && !user.emailVerified
-                            ? "Verify your email to pledge."
-                            : ""
-                        }
-                        className="bg-teal-600 text-white text-sm px-4 py-1.5 rounded-xl hover:bg-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-teal-600 text-white text-sm px-4 py-1.5 rounded-xl hover:bg-teal-700 transition-all duration-200"
                       >
                         Pledge This Item
                       </button>

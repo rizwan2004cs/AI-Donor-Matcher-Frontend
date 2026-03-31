@@ -15,7 +15,6 @@ function normalizeAuthUser(data) {
       fullName: data.fullName ?? "",
       email: data.email ?? "",
       role: data.role ?? "",
-      emailVerified: Boolean(data.emailVerified),
     }
   );
 }
@@ -38,7 +37,6 @@ export default function Login() {
     );
   }, [location.state]);
 
-  // If already logged in, don't show login form — redirect by role
   useEffect(() => {
     if (!user) return;
 
@@ -82,7 +80,6 @@ export default function Login() {
       const appUser = normalizeAuthUser(res.data);
       login(appUser, idToken);
 
-      // Redirect based on role
       if (appUser.role === "ADMIN") navigate("/admin/dashboard");
       else if (appUser.role === "NGO") navigate("/ngo/dashboard");
       else navigate("/");
@@ -147,7 +144,6 @@ export default function Login() {
           {error && (
             <p className="text-red-500 text-sm">{error}</p>
           )}
-
           <button
             type="submit"
             disabled={loading || !online}

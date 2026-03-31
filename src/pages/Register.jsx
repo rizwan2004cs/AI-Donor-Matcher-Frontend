@@ -15,7 +15,6 @@ function normalizeAuthUser(data) {
       fullName: data.fullName ?? "",
       email: data.email ?? "",
       role: data.role ?? "",
-      emailVerified: Boolean(data.emailVerified),
     }
   );
 }
