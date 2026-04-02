@@ -34,7 +34,7 @@ export default function Navbar() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <nav className="glass-nav text-white px-4 sm:px-6 py-3 flex items-center justify-between rounded-2xl shadow-md">
           <Link to={homePath} className="text-lg font-bold tracking-tight">
-            AI Donor Matcher
+            NGO Donation Matcher
           </Link>
 
           <div className="flex items-center gap-5 text-sm">
@@ -64,13 +64,13 @@ export default function Navbar() {
             {user?.role === "DONOR" && (
               <>
                 <Link to="/" className="hover:text-teal-200 transition-all duration-200">
-                  Map
+                  NGO Map
                 </Link>
                 <Link
                   to="/donor/dashboard"
                   className="hover:text-teal-200 transition-all duration-200"
                 >
-                  My Dashboard
+                  Donor Dashboard
                 </Link>
               </>
             )}
@@ -80,7 +80,7 @@ export default function Navbar() {
                 to="/ngo/dashboard"
                 className="hover:text-teal-200 transition-all duration-200"
               >
-                Dashboard
+                NGO Dashboard
               </Link>
             )}
 
@@ -89,7 +89,7 @@ export default function Navbar() {
                 to="/admin/dashboard"
                 className="hover:text-teal-200 transition-all duration-200"
               >
-                Dashboard
+                Admin Dashboard
               </Link>
             )}
 

@@ -1,7 +1,7 @@
 {
-  "name": "AI Donation Matcher",
-  "short_name": "DonorMatch",
-  "description": "AI-powered platform connecting donors with verified NGOs based on proximity and need urgency.",
+  "name": "NGO Donation Matcher",
+  "short_name": "NGO Matcher",
+  "description": "Platform connecting donors with verified NGOs based on proximity and need urgency.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F0FDFA",

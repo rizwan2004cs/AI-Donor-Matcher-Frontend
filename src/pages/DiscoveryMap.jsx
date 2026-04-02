@@ -287,7 +287,7 @@ export default function DiscoveryMap() {
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-2xl">
                   <p className="text-xs font-semibold uppercase tracking-[0.32em] text-teal-100/80">
-                    Discovery Map
+                    Donor Discovery Map
                   </p>
                   <h1 className="mt-1.5 text-[2rem] font-bold tracking-tight sm:text-[1.9rem]">
                     Find the right NGO faster
