@@ -3,6 +3,8 @@ import { AuthProvider } from "./auth/AuthContext";
 import { useAuth } from "./auth/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import useOnlineStatus from "./hooks/useOnlineStatus";
+import { TourProvider } from "./tour/TourContext";
+import TourFAB from "./components/TourFAB";
 
 // Pages
 import Login from "./pages/Login";
@@ -127,7 +129,10 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <TourProvider>
+          <AppRoutes />
+          <TourFAB />
+        </TourProvider>
       </BrowserRouter>
     </AuthProvider>
   );

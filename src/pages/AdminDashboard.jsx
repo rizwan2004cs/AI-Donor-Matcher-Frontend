@@ -4,6 +4,8 @@ import Navbar from "../components/Navbar";
 import NeedEditorModal from "../components/NeedEditorModal";
 import TrustBadge from "../components/TrustBadge";
 import useOnlineStatus from "../hooks/useOnlineStatus";
+import { useTour } from "../tour/TourContext";
+import { takePendingTour, TOUR_IDS } from "../tour/tours";
 import {
   AlertTriangle,
   Ban,
@@ -164,6 +166,13 @@ export default function AdminDashboard() {
   const [savingNeed, setSavingNeed] = useState(false);
   const online = useOnlineStatus();
   const expandedNeedsRef = useRef(null);
+  const { startTour } = useTour();
+
+  useEffect(() => {
+    if (!loading && takePendingTour(TOUR_IDS.FULL_ADMIN)) {
+      startTour(TOUR_IDS.FULL_ADMIN);
+    }
+  }, [loading, startTour]);
 
   const groupedReports = useMemo(() => groupReportsByNgo(reports), [reports]);
   const expandedNgo = useMemo(
@@ -592,7 +601,7 @@ export default function AdminDashboard() {
         </section>
 
         {stats && (
-          <div className="mx-auto mt-6 grid max-w-6xl gap-4 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
+          <div data-tour-id="admin-hero-stats" className="mx-auto mt-6 grid max-w-6xl gap-4 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
             {STAT_CARDS.map(({ key, label, icon, color }) => (
               <StatCard
                 key={key}
@@ -617,10 +626,11 @@ export default function AdminDashboard() {
         )}
 
         <div className="mx-auto mt-5 max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="glass-subtle grid overflow-hidden rounded-[24px] border border-white/60 p-2 shadow-sm md:grid-cols-3">
+          <div data-tour-id="admin-tabs" className="glass-subtle grid overflow-hidden rounded-[24px] border border-white/60 p-2 shadow-sm md:grid-cols-3">
           {TABS.map((item) => (
             <button
               key={item.id}
+              data-tour-id={`admin-tab-${item.id}`}
               onClick={() => setTab(item.id)}
               className={`rounded-2xl px-4 py-3 text-sm font-semibold text-center transition-all duration-200 ${
                 tab === item.id
@@ -634,7 +644,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <main className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
+        <main data-tour-id="admin-content" className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
           {loading && (
             <div className="flex items-center justify-center py-12">
               <div className="h-8 w-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
@@ -660,7 +670,7 @@ export default function AdminDashboard() {
           )}
 
           {!loading && tab === "verify" && (
-            <section className="space-y-4">
+            <section data-tour-id="admin-verify-content" className="space-y-4">
               {pendingVerifications.length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="mx-auto h-12 w-12 text-slate-300" />
@@ -736,7 +746,7 @@ export default function AdminDashboard() {
           )}
 
           {!loading && tab === "reports" && (
-            <section className="space-y-4">
+            <section data-tour-id="admin-reports-content" className="space-y-4">
               <div className="glass rounded-2xl p-4">
                 <p className="text-sm text-slate-600">
                   Report dismissal is still blocked on a backend-confirmed endpoint, so
@@ -849,7 +859,7 @@ export default function AdminDashboard() {
           )}
 
           {!loading && tab === "ngos" && (
-            <section className="space-y-4">
+            <section data-tour-id="admin-ngos-content" className="space-y-4">
               <div className="glass rounded-2xl p-4">
                 <p className="text-sm text-slate-600">
                   Per-NGO need inspection now uses the dedicated admin read endpoint, and

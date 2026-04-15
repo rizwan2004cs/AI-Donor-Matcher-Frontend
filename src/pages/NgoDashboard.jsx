@@ -23,12 +23,15 @@ import {
   normalizeNgoProfile,
 } from "../utils/ngoProfile";
 import useOnlineStatus from "../hooks/useOnlineStatus";
+import { useTour } from "../tour/TourContext";
+import { takePendingTour, TOUR_IDS } from "../tour/tours";
 
 const MAX_ACTIVE_NEEDS = 5;
 
 export default function NgoDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeTourId, startTour } = useTour();
   const [profile, setProfile] = useState(() => normalizeNgoProfile());
   const [needs, setNeeds] = useState([]);
   const [incomingPledges, setIncomingPledges] = useState([]);
@@ -72,6 +75,18 @@ export default function NgoDashboard() {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  useEffect(() => {
+    if (activeTourId || !takePendingTour(TOUR_IDS.NGO_DASHBOARD)) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      startTour(TOUR_IDS.NGO_DASHBOARD);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTourId, startTour]);
 
   const openAddModal = () => {
     setEditingNeed(null);
@@ -192,6 +207,7 @@ export default function NgoDashboard() {
             <button
               type="button"
               onClick={() => navigate("/ngo/complete-profile")}
+              data-tour-id="ngo-dashboard-hero"
               className="text-left text-sm font-medium text-teal-700 transition-all duration-200 hover:text-teal-800"
             >
               {profile.name
@@ -209,7 +225,7 @@ export default function NgoDashboard() {
           </header>
 
           <div className="mt-8 space-y-6">
-            <section className="glass rounded-2xl p-6">
+            <section className="glass rounded-2xl p-6" data-tour-id="ngo-dashboard-summary">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
@@ -236,6 +252,7 @@ export default function NgoDashboard() {
                     )}
 
                     <button
+                      data-tour-id="ngo-dashboard-edit-profile"
                       onClick={() => navigate("/ngo/complete-profile")}
                       className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 inline-flex items-center gap-2"
                     >
@@ -271,7 +288,7 @@ export default function NgoDashboard() {
               </div>
             </section>
 
-            <section className="glass rounded-2xl p-6">
+            <section className="glass rounded-2xl p-6" data-tour-id="ngo-dashboard-needs">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-semibold text-slate-900">
@@ -396,7 +413,7 @@ export default function NgoDashboard() {
               )}
             </section>
 
-            <section className="glass rounded-2xl p-6">
+            <section className="glass rounded-2xl p-6" data-tour-id="ngo-dashboard-pledges">
               <h2 className="text-2xl font-semibold text-slate-900">
                 Incoming Pledges
               </h2>

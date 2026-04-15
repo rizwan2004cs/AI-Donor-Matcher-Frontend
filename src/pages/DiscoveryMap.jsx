@@ -19,6 +19,8 @@ import {
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
+import { useTour } from "../tour/TourContext";
+import { takePendingTour, TOUR_IDS } from "../tour/tours";
 
 const DEFAULT_CENTER = [13.0827, 80.2707]; // Chennai fallback
 
@@ -36,6 +38,7 @@ function RecenterOnChange({ center, zoom = 12 }) {
 export default function DiscoveryMap() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeTourId, startTour } = useTour();
   const [ngos, setNgos] = useState([]);
   const [activePledges, setActivePledges] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +116,18 @@ export default function DiscoveryMap() {
   useEffect(() => {
     fetchNgos();
   }, [fetchNgos]);
+
+  useEffect(() => {
+    if (activeTourId || !takePendingTour(TOUR_IDS.FULL_DONOR)) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      startTour(TOUR_IDS.FULL_DONOR);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTourId, startTour]);
 
   useEffect(() => {
     if (!user || user.role !== "DONOR") {
@@ -284,7 +299,10 @@ export default function DiscoveryMap() {
             )}
 
             <div className="border-b border-white/40 bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-600 px-5 py-4 text-white sm:px-6">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div
+                className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
+                data-tour-id="donor-map-hero"
+              >
                 <div className="max-w-2xl">
                   <p className="text-xs font-semibold uppercase tracking-[0.32em] text-teal-100/80">
                     Donor Discovery Map
@@ -309,7 +327,7 @@ export default function DiscoveryMap() {
               </div>
             </div>
 
-            <div className="glass-subtle border-b border-white/30">
+            <div className="glass-subtle border-b border-white/30" data-tour-id="donor-map-search">
               <div className="flex flex-col gap-3 px-4 py-3 sm:px-6">
                 <div>
                   <div>
@@ -414,7 +432,7 @@ export default function DiscoveryMap() {
             )}
 
             <div className="grid h-[calc(100vh-190px)] min-h-[620px] grid-rows-[minmax(460px,1fr)_280px] gap-0 lg:grid-cols-[minmax(0,1.7fr)_360px] lg:grid-rows-1">
-              <div className="min-h-[460px] lg:min-h-0">
+              <div className="min-h-[460px] lg:min-h-0" data-tour-id="donor-map-canvas">
                 <MapContainer center={center} zoom={12} className="h-full w-full">
                   <RecenterOnChange
                     center={focusedCenter || center}
@@ -467,7 +485,10 @@ export default function DiscoveryMap() {
                 </MapContainer>
               </div>
 
-              <aside className="glass-subtle flex min-h-0 h-full max-h-[280px] flex-col border-t border-white/30 lg:max-h-none lg:border-l lg:border-t-0">
+              <aside
+                className="glass-subtle flex min-h-0 h-full max-h-[280px] flex-col border-t border-white/30 lg:max-h-none lg:border-l lg:border-t-0"
+                data-tour-id="donor-map-results"
+              >
                 <div className="border-b border-white/30 px-5 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>

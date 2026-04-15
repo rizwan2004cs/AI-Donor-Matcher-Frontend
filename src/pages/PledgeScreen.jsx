@@ -205,7 +205,7 @@ export default function PledgeScreen() {
             <p className="text-sm text-slate-600">{need.description}</p>
           )}
 
-          <div className="space-y-2 text-sm">
+          <div data-tour-id="pledge-item-details" className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-500">Item:</span>
               <span className="font-medium">{need.itemName}</span>
@@ -244,7 +244,7 @@ export default function PledgeScreen() {
 
           <hr className="border-slate-200" />
 
-          <div className="space-y-2 text-sm">
+          <div data-tour-id="pledge-quantity-summary" className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-500">Total needed:</span>
               <span>{need.quantityRequired}</span>
@@ -265,7 +265,7 @@ export default function PledgeScreen() {
             <p className="text-sm text-slate-600 mb-2">
               How many can you donate?
             </p>
-            <div className="flex items-center gap-4 justify-center">
+            <div data-tour-id="pledge-quantity-picker" className="flex items-center gap-4 justify-center">
               <button
                 onClick={decrement}
                 disabled={qty <= 1}
@@ -295,6 +295,7 @@ export default function PledgeScreen() {
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
           <button
+            data-tour-id="pledge-confirm-btn"
             onClick={onSubmit}
             disabled={submitting || !online || remaining <= 0}
             className="w-full bg-teal-600 text-white py-2.5 rounded-xl font-semibold hover:bg-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"

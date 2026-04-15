@@ -289,7 +289,7 @@ export default function DeliveryView() {
     <>
       <Navbar />
       <div className="min-h-screen bg-teal-50">
-        <div className="glass-subtle shadow px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div data-tour-id="delivery-header" className="glass-subtle shadow px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900">
               Delivering to {pledge.ngoName || "NGO destination"}
@@ -317,7 +317,7 @@ export default function DeliveryView() {
           </div>
         </div>
 
-        <div className="h-[60vh]">
+        <div data-tour-id="delivery-map" className="h-[60vh]">
           <MapContainer center={center} zoom={12} className="h-full w-full">
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -341,6 +341,7 @@ export default function DeliveryView() {
 
         <div className="p-4 flex gap-3 max-w-lg mx-auto">
           <button
+            data-tour-id="delivery-navigate-btn"
             onClick={openGoogleMaps}
             className="flex-1 bg-teal-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-teal-700 transition-all duration-200"
           >
@@ -355,7 +356,7 @@ export default function DeliveryView() {
           </button>
         </div>
 
-        <div className="max-w-lg mx-auto glass rounded-2xl p-4 mb-6">
+        <div data-tour-id="delivery-dropoff" className="max-w-lg mx-auto glass rounded-2xl p-4 mb-6">
           <h3 className="font-semibold text-sm text-slate-500 mb-2">
             Drop-off Details
           </h3>

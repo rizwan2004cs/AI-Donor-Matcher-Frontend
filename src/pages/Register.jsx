@@ -7,6 +7,7 @@ import Navbar from "../components/Navbar";
 import LoadingOverlay from "../components/LoadingOverlay";
 import useOnlineStatus from "../hooks/useOnlineStatus";
 import { firebaseAuth } from "../firebase";
+import { queuePendingTour, TOUR_IDS } from "../tour/tours";
 
 function normalizeAuthUser(data) {
   return (
@@ -115,6 +116,14 @@ export default function Register() {
       const registeredUser = normalizeAuthUser(authPayload);
       if (!registeredUser?.role) {
         throw new Error("Registration succeeded but auth payload was incomplete.");
+      }
+
+      if (registeredUser.role === "NGO") {
+        queuePendingTour(TOUR_IDS.FULL_NGO);
+      } else if (registeredUser.role === "DONOR") {
+        queuePendingTour(TOUR_IDS.FULL_DONOR);
+      } else if (registeredUser.role === "ADMIN") {
+        queuePendingTour(TOUR_IDS.FULL_ADMIN);
       }
 
       login(registeredUser, idToken);

@@ -68,6 +68,7 @@ export default function Navbar() {
                 </Link>
                 <Link
                   to="/donor/dashboard"
+                  data-tour-id="donor-dashboard-link"
                   className="hover:text-teal-200 transition-all duration-200"
                 >
                   Donor Dashboard

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../auth/AuthContext";
 import Navbar from "../components/Navbar";
@@ -28,13 +28,16 @@ function formatDate(value) {
 export default function NgoProfile() {
   const { ngoId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const [ngo, setNgo] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [ngo, setNgo] = useState(location.state?._tourData || null);
+  const [loading, setLoading] = useState(!location.state?._tourData);
   const [error, setError] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
 
   useEffect(() => {
+    if (location.state?._tourData) return;
+
     api
       .get(`/api/ngos/${ngoId}`)
       .then((res) => setNgo(res.data))
@@ -46,7 +49,7 @@ export default function NgoProfile() {
         )
       )
       .finally(() => setLoading(false));
-  }, [ngoId]);
+  }, [ngoId, location.state]);
 
   const activeNeeds = useMemo(
     () => (Array.isArray(ngo?.activeNeeds) ? ngo.activeNeeds : []),
@@ -106,7 +109,7 @@ export default function NgoProfile() {
             Back
           </button>
 
-          <div className="glass rounded-2xl p-6">
+          <div data-tour-id="ngo-profile-header" className="glass rounded-2xl p-6">
             <div className="flex items-start gap-4">
               {ngo.photoUrl ? (
                 <img
@@ -147,7 +150,7 @@ export default function NgoProfile() {
             )}
           </div>
 
-          <section className="glass rounded-2xl p-6">
+          <section data-tour-id="ngo-profile-needs" className="glass rounded-2xl p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-3">Active Needs</h2>
             {activeNeeds.length === 0 ? (
               <p className="text-sm text-slate-500">
@@ -188,6 +191,7 @@ export default function NgoProfile() {
                       </p>
 
                       <button
+                        data-tour-id="ngo-profile-pledge-btn"
                         onClick={() => handlePledge(need)}
                         className="bg-teal-600 text-white text-sm px-4 py-1.5 rounded-xl hover:bg-teal-700 transition-all duration-200"
                       >
@@ -222,7 +226,7 @@ export default function NgoProfile() {
             </section>
           )}
 
-          <div className="border-t border-slate-200 pt-4">
+          <div data-tour-id="ngo-profile-report" className="border-t border-slate-200 pt-4">
             <button
               onClick={() => setShowReportModal(true)}
               className="text-sm text-slate-500 hover:text-red-500 transition-all duration-200"

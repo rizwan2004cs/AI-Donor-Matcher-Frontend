@@ -15,6 +15,8 @@ import {
   X,
 } from "lucide-react";
 import useOnlineStatus from "../hooks/useOnlineStatus";
+import { useTour } from "../tour/TourContext";
+import { takePendingTour, TOUR_IDS } from "../tour/tours";
 
 function formatDate(value) {
   if (!value) return null;
@@ -70,6 +72,7 @@ export default function DonorDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const online = useOnlineStatus();
+  const { activeTourId, startTour } = useTour();
   const [tab, setTab] = useState("active");
   const [activePledges, setActivePledges] = useState([]);
   const [history, setHistory] = useState([]);
@@ -122,6 +125,18 @@ export default function DonorDashboard() {
   useEffect(() => {
     loadActivePledges();
   }, []);
+
+  useEffect(() => {
+    if (activeTourId || !takePendingTour(TOUR_IDS.DONOR_DASHBOARD)) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      startTour(TOUR_IDS.DONOR_DASHBOARD);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTourId, startTour]);
 
   useEffect(() => {
     if (tab !== "history" || historyFetched) return;
@@ -369,7 +384,10 @@ export default function DonorDashboard() {
       <Navbar />
       <div className="min-h-screen bg-teal-50">
         <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
-          <div className="overflow-hidden rounded-[28px] border border-teal-700/20 bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-6 py-6 text-white shadow-[0_24px_80px_rgba(13,148,136,0.18)] sm:px-8">
+          <div
+            className="overflow-hidden rounded-[28px] border border-teal-700/20 bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-6 py-6 text-white shadow-[0_24px_80px_rgba(13,148,136,0.18)] sm:px-8"
+            data-tour-id="donor-dashboard-hero"
+          >
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-2xl">
                 <p className="text-xs font-semibold uppercase tracking-[0.32em] text-teal-100/80">
@@ -396,7 +414,10 @@ export default function DonorDashboard() {
           </div>
         </section>
 
-        <section className="mx-auto mt-6 grid max-w-6xl gap-4 px-4 sm:grid-cols-2 lg:grid-cols-3 sm:px-6 lg:px-8">
+        <section
+          className="mx-auto mt-6 grid max-w-6xl gap-4 px-4 sm:grid-cols-2 lg:grid-cols-3 sm:px-6 lg:px-8"
+          data-tour-id="donor-dashboard-stats"
+        >
           <StatCard
             icon={Package}
             label="Active pledges"
@@ -418,7 +439,10 @@ export default function DonorDashboard() {
         </section>
 
         <div className="mx-auto mt-6 max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="glass-subtle grid overflow-hidden rounded-[24px] border border-white/60 p-2 shadow-sm md:grid-cols-2">
+          <div
+            className="glass-subtle grid overflow-hidden rounded-[24px] border border-white/60 p-2 shadow-sm md:grid-cols-2"
+            data-tour-id="donor-dashboard-tabs"
+          >
             <button
               onClick={() => setTab("active")}
               className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
@@ -444,7 +468,10 @@ export default function DonorDashboard() {
           </div>
         </div>
 
-        <main className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
+        <main
+          className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6 lg:px-8"
+          data-tour-id="donor-dashboard-content"
+        >
           {error && <div className="glass rounded-2xl p-4 text-sm text-red-500">{error}</div>}
           {tab === "active" ? renderActiveContent() : renderHistoryContent()}
         </main>

@@ -21,6 +21,8 @@ import {
   normalizeNgoProfile,
 } from "../utils/ngoProfile";
 import useOnlineStatus from "../hooks/useOnlineStatus";
+import { useTour } from "../tour/TourContext";
+import { queuePendingTour, takePendingTour, TOUR_IDS } from "../tour/tours";
 
 const FIELD_ICONS = {
   name: Building2,
@@ -42,6 +44,7 @@ const EMPTY_FORM = {
 
 export default function NgoProfileCompletion() {
   const navigate = useNavigate();
+  const { activeTourId, startTour } = useTour();
   const [profile, setProfile] = useState(() => normalizeNgoProfile());
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
@@ -80,6 +83,18 @@ export default function NgoProfileCompletion() {
     loadProfile();
   }, []);
 
+  useEffect(() => {
+    if (activeTourId || !takePendingTour(TOUR_IDS.FULL_NGO)) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      startTour(TOUR_IDS.FULL_NGO);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTourId, startTour]);
+
   const handleChange = ({ target: { name, value } }) => {
     setForm((current) => ({ ...current, [name]: value }));
   };
@@ -100,6 +115,7 @@ export default function NgoProfileCompletion() {
       setMessage("Profile details saved.");
 
       if (getNgoProfileCompletion(form).isComplete) {
+        queuePendingTour(TOUR_IDS.NGO_DASHBOARD);
         navigate("/ngo/dashboard");
       }
     } catch (err) {
@@ -181,7 +197,7 @@ export default function NgoProfileCompletion() {
           </header>
 
           <div className="mt-8 space-y-6">
-            <section className="glass rounded-2xl p-6">
+            <section className="glass rounded-2xl p-6" data-tour-id="ngo-profile-progress">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-semibold text-slate-900">
@@ -230,7 +246,7 @@ export default function NgoProfileCompletion() {
               </div>
             </section>
 
-            <section className="glass rounded-2xl p-6">
+            <section className="glass rounded-2xl p-6" data-tour-id="ngo-profile-photo">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-semibold text-slate-900">
@@ -275,7 +291,7 @@ export default function NgoProfileCompletion() {
               </label>
             </section>
 
-            <section className="glass rounded-2xl p-6">
+            <section className="glass rounded-2xl p-6" data-tour-id="ngo-profile-form">
               <h2 className="text-2xl font-semibold text-slate-900">
                 Organization Details
               </h2>
@@ -381,6 +397,7 @@ export default function NgoProfileCompletion() {
                   <button
                     type="submit"
                     disabled={saving || !online}
+                    data-tour-id="ngo-profile-save"
                     className="bg-teal-600 text-white hover:bg-teal-700 rounded-xl px-5 py-2.5 font-medium transition-all duration-200 shadow-sm hover:shadow disabled:opacity-50 inline-flex items-center justify-center gap-2"
                   >
                     <Save className="h-4 w-4" />
