@@ -30,7 +30,7 @@ export default function Navbar() {
           : "/login";
 
   return (
-    <header className="bg-teal-50">
+    <header className="page-watermark">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <nav className="glass-nav text-white px-4 sm:px-6 py-3 flex items-center justify-between rounded-2xl shadow-md">
           <Link to={homePath} className="text-lg font-bold tracking-tight">

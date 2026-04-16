@@ -152,7 +152,7 @@ export default function PledgeScreen() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
+    <div className="min-h-screen page-watermark flex items-center justify-center p-4">
           <div className="glass rounded-2xl p-8 w-full max-w-md">
             <div className="flex items-center justify-center py-8">
               <div className="h-8 w-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
@@ -167,7 +167,7 @@ export default function PledgeScreen() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
+    <div className="min-h-screen page-watermark flex items-center justify-center p-4">
           <div className="glass rounded-2xl p-8 w-full max-w-lg space-y-4">
             <h1 className="text-xl font-bold text-slate-900">Pledge Details Unavailable</h1>
             <p className="text-sm text-slate-600">
@@ -188,7 +188,7 @@ export default function PledgeScreen() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
+    <div className="min-h-screen page-watermark flex items-center justify-center p-4">
         <div className="glass rounded-2xl p-8 w-full max-w-md space-y-5">
           <h1 className="text-xl font-bold text-slate-900">
             Pledge to {need.ngoName}

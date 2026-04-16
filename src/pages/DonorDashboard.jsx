@@ -382,7 +382,7 @@ export default function DonorDashboard() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-teal-50">
+    <div className="min-h-screen page-watermark">
         <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8">
           <div
             className="overflow-hidden rounded-[28px] border border-teal-700/20 bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 px-6 py-6 text-white shadow-[0_24px_80px_rgba(13,148,136,0.18)] sm:px-8"

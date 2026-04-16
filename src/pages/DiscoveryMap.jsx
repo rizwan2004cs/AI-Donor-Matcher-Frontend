@@ -254,7 +254,7 @@ export default function DiscoveryMap() {
   return (
     <>
       <Navbar />
-      <div className="bg-teal-50">
+      <div className="page-watermark">
         <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <div className="overflow-hidden rounded-[30px] border border-white/70 bg-white/45 shadow-[0_24px_80px_rgba(15,118,110,0.08)] backdrop-blur-sm">
             {primaryPledge && (

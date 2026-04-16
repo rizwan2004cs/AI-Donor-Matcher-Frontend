@@ -40,3 +40,25 @@ body {
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
+
+.page-watermark {
+  background-color: #F0FDFA;
+  background-image:
+    linear-gradient(rgba(240, 253, 250, 0.92), rgba(240, 253, 250, 0.92)),
+    url("./assets/nbkrist-logo.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 1250px;
+}
+
+@media (min-width: 640px) {
+  .page-watermark {
+    background-size: 1350px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-watermark {
+    background-size: 1430px;
+  }
+}

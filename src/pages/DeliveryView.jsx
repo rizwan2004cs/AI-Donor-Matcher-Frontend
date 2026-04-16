@@ -265,7 +265,7 @@ export default function DeliveryView() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
+    <div className="min-h-screen page-watermark flex items-center justify-center p-4">
           <div className="glass rounded-2xl p-8 w-full max-w-lg space-y-4">
             <h1 className="text-xl font-bold text-slate-900">Delivery Details Unavailable</h1>
             <p className="text-sm text-slate-600">
@@ -288,7 +288,7 @@ export default function DeliveryView() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-teal-50">
+    <div className="min-h-screen page-watermark">
         <div data-tour-id="delivery-header" className="glass-subtle shadow px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900">

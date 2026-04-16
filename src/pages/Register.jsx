@@ -168,7 +168,7 @@ export default function Register() {
     <>
       <Navbar />
       {loading && <LoadingOverlay message={loadingMessage} />}
-      <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
+      <div className="page-watermark min-h-screen flex items-center justify-center p-4">
         <form
           onSubmit={onRegister}
           className="glass rounded-2xl p-8 w-full max-w-md space-y-5"

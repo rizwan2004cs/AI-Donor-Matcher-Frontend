@@ -48,7 +48,7 @@ export default function EmailVerificationPending() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-teal-50 flex items-center justify-center p-4">
+      <div className="min-h-screen page-watermark flex items-center justify-center p-4">
         <div className="glass rounded-2xl p-8 w-full max-w-md text-center space-y-4">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-100 text-teal-700">
             <MailCheck className="h-7 w-7" />

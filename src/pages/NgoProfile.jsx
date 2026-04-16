@@ -98,7 +98,7 @@ export default function NgoProfile() {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-teal-50">
+    <div className="min-h-screen page-watermark">
         <main className="max-w-3xl mx-auto p-6 space-y-6">
           <button
             type="button"

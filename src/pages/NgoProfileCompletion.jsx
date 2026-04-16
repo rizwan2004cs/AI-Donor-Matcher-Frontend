@@ -161,7 +161,7 @@ export default function NgoProfileCompletion() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-teal-50">
+    <div className="min-h-screen page-watermark">
           <main className="max-w-4xl mx-auto px-6 py-12">
             <div className="flex items-center justify-center py-12">
               <div className="h-8 w-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
@@ -184,7 +184,7 @@ export default function NgoProfileCompletion() {
           }
         />
       )}
-      <div className="min-h-screen bg-teal-50">
+    <div className="min-h-screen page-watermark">
         <main className="max-w-4xl mx-auto px-6 py-8">
           <header>
             <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
