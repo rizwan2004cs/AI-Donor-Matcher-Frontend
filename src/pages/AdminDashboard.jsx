@@ -42,6 +42,8 @@ const STAT_CARDS = [
 ];
 
 const INITIAL_LIST_LIMIT = 10;
+const BACKGROUND_HYDRATE_DELAY_MS = 300;
+
 function titleCase(value) {
   if (!value) return "";
 
